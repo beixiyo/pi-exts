@@ -12,7 +12,7 @@
   <img alt="github" src="https://img.shields.io/badge/GitHub-181717?logo=github&logoColor=white" />
 </div>
 
-> [Pi 编码代理](https://github.com/earendil-works/pi-coding-agent)扩展合集：`ask_user` 弹窗提问工具、`/yank` 内容复制选择器、带厂商配额的 statusline、会话自动命名、句中斜杠命令补全、行内代码背景色
+> 让 [Pi 编码代理](https://github.com/earendil-works/pi-coding-agent)更好看、更好用：带厂商配额的状态栏、`ask_user` 弹窗提问、`/yank` 选择复制、会话自动命名、句中命令补全，附带 Tokyo Night 主题
 
 ## ✨ 安装
 

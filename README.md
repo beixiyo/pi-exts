@@ -8,7 +8,7 @@
   <img alt="github" src="https://img.shields.io/badge/GitHub-181717?logo=github&logoColor=white" />
 </div>
 
-> Extensions for the [Pi coding agent](https://github.com/earendil-works/pi-coding-agent): an `ask_user` dialog tool, a `/yank` picker, a statusline with provider quotas, session auto-rename, mid-sentence slash completion, and inline-code backgrounds.
+> Polish & level up the [Pi coding agent](https://github.com/earendil-works/pi-coding-agent): a statusline with provider quotas, `ask_user` dialogs, a `/yank` picker, auto session naming, mid-sentence slash completion, and a bundled Tokyo Night theme.
 
 ## ✨ Install
 
