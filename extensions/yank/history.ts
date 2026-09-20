@@ -13,7 +13,7 @@ interface CodeBlock {
 }
 
 /** 解析 markdown 围栏代码块（``` / ~~~，≥3 个字符）；未闭合的尾块也收下 */
-function parseCodeBlocks(text: string): CodeBlock[] {
+export function parseCodeBlocks(text: string): CodeBlock[] {
   const blocks: CodeBlock[] = []
   let lang = ''
   let fenceChar = ''

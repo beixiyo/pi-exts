@@ -110,9 +110,11 @@ function parseSegment(
   return { type, color: color.trim() }
 }
 
-/** 配置归一化 */
-export function loadConfig(): StatuslineConfig {
-  const cfg = readExtensionConfig('statusline')
+/**
+ * 配置归一化
+ * @param raw 已读取的原始配置对象；缺省从 settings.json 读取（测试可注入）
+ */
+export function loadConfig(raw: Record<string, unknown> | undefined = readExtensionConfig('statusline')): StatuslineConfig {
 
   const parseList = (raw: unknown, types: ReadonlySet<string>, allowAuto: boolean, where: string) =>
     Array.isArray(raw)
@@ -121,11 +123,11 @@ export function loadConfig(): StatuslineConfig {
         .filter((entry): entry is { type: string; color: SegmentColor } => entry !== undefined)
       : []
 
-  const left = parseList(cfg?.left, LEFT_TYPES, false, 'left') as LeftSegment[]
-  const right = parseList(cfg?.right, RIGHT_TYPES, true, 'right') as RightSegment[]
+  const left = parseList(raw?.left, LEFT_TYPES, false, 'left') as LeftSegment[]
+  const right = parseList(raw?.right, RIGHT_TYPES, true, 'right') as RightSegment[]
 
-  const levels = cfg?.autoLevels && typeof cfg.autoLevels === 'object' && !Array.isArray(cfg.autoLevels)
-    ? cfg.autoLevels as Record<string, unknown>
+  const levels = raw?.autoLevels && typeof raw.autoLevels === 'object' && !Array.isArray(raw.autoLevels)
+    ? raw.autoLevels as Record<string, unknown>
     : {}
   const THEME_COLOR_NAMES = new Set(['text', 'muted', 'dim', 'success', 'warning', 'error', 'accent'])
   const isColorValue = (value: unknown): value is string =>
@@ -146,20 +148,20 @@ export function loadConfig(): StatuslineConfig {
     return typeof value === 'number' && Number.isFinite(value) && value > 0 && value <= 100 ? value : fallback
   }
 
-  const sep = cfg?.separator && typeof cfg.separator === 'object' && !Array.isArray(cfg.separator)
-    ? cfg.separator as Record<string, unknown>
+  const sep = raw?.separator && typeof raw.separator === 'object' && !Array.isArray(raw.separator)
+    ? raw.separator as Record<string, unknown>
     : {}
   const sepColor = typeof sep.color === 'string' && (HEX_RE.test(sep.color) || sep.color.trim()) ? sep.color.trim() : DEFAULTS.separator.color
 
-  const badge = cfg?.badge && typeof cfg.badge === 'object' && !Array.isArray(cfg.badge)
-    ? cfg.badge as Record<string, unknown>
+  const badge = raw?.badge && typeof raw.badge === 'object' && !Array.isArray(raw.badge)
+    ? raw.badge as Record<string, unknown>
     : {}
   const badgeBg = typeof badge.bg === 'string' && HEX_RE.test(badge.bg) ? badge.bg as HexColor : DEFAULTS.badge.bg
   const badgeFg = typeof badge.fg === 'string' && HEX_RE.test(badge.fg) ? badge.fg as HexColor : DEFAULTS.badge.fg
   const badgeWidth = typeof badge.maxWidth === 'number' && Number.isInteger(badge.maxWidth) && badge.maxWidth >= 4 ? badge.maxWidth : DEFAULTS.badge.maxWidth
 
-  const refresh = typeof cfg?.quotaRefreshMs === 'number' && Number.isFinite(cfg.quotaRefreshMs) && cfg.quotaRefreshMs >= 1000
-    ? cfg.quotaRefreshMs
+  const refresh = typeof raw?.quotaRefreshMs === 'number' && Number.isFinite(raw.quotaRefreshMs) && raw.quotaRefreshMs >= 1000
+    ? raw.quotaRefreshMs
     : DEFAULTS.quotaRefreshMs
 
   return {
@@ -177,8 +179,8 @@ export function loadConfig(): StatuslineConfig {
       right: typeof sep.right === 'string' && sep.right ? sep.right : DEFAULTS.separator.right,
       color: sepColor,
     },
-    hiddenStatusKeys: Array.isArray(cfg?.hiddenStatusKeys)
-      ? cfg.hiddenStatusKeys.filter((k): k is string => typeof k === 'string')
+    hiddenStatusKeys: Array.isArray(raw?.hiddenStatusKeys)
+      ? raw.hiddenStatusKeys.filter((k): k is string => typeof k === 'string')
       : DEFAULTS.hiddenStatusKeys,
     quotaRefreshMs: refresh,
     badge: {
