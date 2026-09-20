@@ -15,7 +15,7 @@
 
 > Polish & level up the [Pi coding agent](https://github.com/earendil-works/pi-coding-agent): a statusline with provider quotas, `ask_user` dialogs, a `/yank` picker, auto session naming, mid-sentence slash completion, and a bundled Tokyo Night theme.
 
-## 📸 Before / After
+## Before / After
 
 <table>
   <tr>
@@ -28,7 +28,7 @@
   </tr>
 </table>
 
-## ✨ Install
+## Install
 
 ```bash
 pi install npm:@jl-org/pi-exts
@@ -45,7 +45,17 @@ Add `@jl-org/pi-exts` to the `packages` array in `~/.pi/agent/settings.json`, or
 }
 ```
 
-## 🔧 Install only what you want
+### Local development
+
+Install straight from a local checkout — pi loads the TypeScript sources directly (no build step), so edits take effect on `/reload`:
+
+```bash
+git clone https://github.com/beixiyo/pi-exts.git
+pi install ./pi-exts          # add the local path to settings
+pi -e ./pi-exts               # or try the working tree without saving
+```
+
+## Install only what you want
 
 This package ships 7 extensions. Pick exactly the ones you want — three ways:
 
@@ -74,7 +84,7 @@ This package ships 7 extensions. Pick exactly the ones you want — three ways:
 }
 ```
 
-## 📦 Contents
+## Contents
 
 | Extension | Adds | What it does |
 |-----------|------|--------------|
@@ -89,7 +99,7 @@ This package ships 7 extensions. Pick exactly the ones you want — three ways:
 
 All configuration lives in `~/.pi/agent/settings.json` and is **entirely optional** — every extension ships with sensible defaults.
 
-## 🖼️ Extensions
+## Extensions
 
 ### ask_user
 
@@ -236,7 +246,7 @@ Renders markdown inline `` `code` `` with a colored background block. Fenced cod
 }
 ```
 
-## 🎨 Theme: pretty-cat
+## Theme: pretty-cat
 
 The package ships the **pretty-cat** theme — a Tokyo Night–derived palette that the statusline and inline-code defaults are tuned against. Select it in `/settings`, or:
 
@@ -253,18 +263,18 @@ Don't want it? Use `pi config` or filter it out:
 { "source": "npm:@jl-org/pi-exts", "themes": [] }
 ```
 
-## ⚙️ Configuration scope
+## Configuration scope
 
 Settings are read from `~/.pi/agent/settings.json` (global) merged with `<project>/.pi/settings.json` (project top-level keys override). After editing, run `/reload` or restart pi. Invalid values fall back to defaults — a broken config never breaks the footer or commands.
 
-## 🔒 Privacy & security
+## Privacy & security
 
 - **Reads**: `settings.json`, `auth.json` (read-only — quota providers look up their own API keys), session data via pi APIs.
 - **Network**: only provider quota/billing endpoints (z.ai / bigmodel.cn, openrouter.ai, api.deepseek.com, api.openai.com), and only for providers whose keys exist in `auth.json`. Plus one LLM call per session for auto-rename, using your configured model.
 - **Writes**: nothing outside pi's own session-name API. Clipboard writes happen only on explicit actions (`/yank`, `/status`) — with OSC 52 forwarding when inside tmux.
 - Quota endpoints need specific key types (e.g. OpenRouter/OpenAI management keys); if absent, the segment is simply skipped.
 
-## 🧩 Other packages I use daily
+## Other packages I use daily
 
 | Package | What it does |
 |---------|--------------|

@@ -15,7 +15,7 @@
 
 > 让 [Pi 编码代理](https://github.com/earendil-works/pi-coding-agent)更好看、更好用：带厂商配额的状态栏、`ask_user` 弹窗提问、`/yank` 选择复制、会话自动命名、句中命令补全，附带 Tokyo Night 主题
 
-## 📸 安装前后对比
+## 安装前后对比
 
 <table>
   <tr>
@@ -28,7 +28,7 @@
   </tr>
 </table>
 
-## ✨ 安装
+## 安装
 
 ```bash
 pi install npm:@jl-org/pi-exts
@@ -45,7 +45,17 @@ pi -e npm:@jl-org/pi-exts
 }
 ```
 
-## 🔧 只启用部分扩展
+## 本地开发
+
+直接从本地 clone 安装——pi 直接加载 TypeScript 源码（无构建步骤），改完 `/reload` 即生效：
+
+```bash
+git clone https://github.com/beixiyo/pi-exts.git
+pi install ./pi-exts          # 本地路径写入 settings
+pi -e ./pi-exts               # 或临时试跑工作区，不落盘
+```
+
+## 只启用部分扩展
 
 本包含 7 个扩展，三种方式精确控制启用哪些：
 
@@ -74,7 +84,7 @@ pi -e npm:@jl-org/pi-exts
 }
 ```
 
-## 📦 内容一览
+## 内容一览
 
 | 扩展 | 提供 | 功能 |
 |------|------|------|
@@ -88,7 +98,7 @@ pi -e npm:@jl-org/pi-exts
 
 所有配置都从 `~/.pi/agent/settings.json` 读取，**全部可省略**——每个扩展都有合理默认值
 
-## 🖼️ 各扩展说明
+## 各扩展说明
 
 ### ask_user
 
@@ -235,7 +245,7 @@ markdown 行内 `` `代码` `` 以背景色渲染。fenced 代码块不受影响
 }
 ```
 
-## 🎨 主题：pretty-cat
+## 主题：pretty-cat
 
 包内附带 **pretty-cat** 主题——Tokyo Night 变体色板，statusline 与行内代码的默认配色均按它调校。在 `/settings` 里选择，或：
 
@@ -252,18 +262,18 @@ markdown 行内 `` `代码` `` 以背景色渲染。fenced 代码块不受影响
 { "source": "npm:@jl-org/pi-exts", "themes": [] }
 ```
 
-## ⚙️ 配置作用域
+## 配置作用域
 
 配置从 `~/.pi/agent/settings.json`（全局）与 `<项目>/.pi/settings.json`（项目顶层键覆盖全局）合并读取。修改后 `/reload` 或重启 pi 生效。非法值回退默认值——写错配置不会弄坏状态栏或命令
 
-## 🔒 隐私与安全
+## 隐私与安全
 
 - **读取**：`settings.json`、`auth.json`（只读——配额 adapter 只查自己的 API key）、经 pi API 读取会话数据
 - **网络**：只访问厂商配额/计费端点（z.ai / bigmodel.cn、openrouter.ai、api.deepseek.com、api.openai.com），且只对 `auth.json` 中存在凭证的厂商发起；外加每会话一次自动命名的 LLM 调用（用你配置的模型）
 - **写入**：除 pi 自身的会话命名 API 外不写任何文件。剪贴板写入仅发生在显式动作（`/yank`、`/status`）——tmux 内经 OSC 52 转发到真实终端
 - 部分配额端点需要特定类型的 key（如 OpenRouter/OpenAI 管理 key）；没有就静默跳过该段
 
-## 🧩 我日常在用的其他包
+## 我日常在用的其他包
 
 | 包 | 功能 |
 |----|------|
