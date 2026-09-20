@@ -41,7 +41,7 @@
     "themes": [
       "./themes"
     ],
-    "image": "https://github.com/beixiyo/pi-exts/releases/download/v0.1.0/statusline.png"
+    "image": "https://github.com/beixiyo/pi-exts/releases/download/v0.1.0/after.png"
   },
   "publishConfig": {
     "access": "public"

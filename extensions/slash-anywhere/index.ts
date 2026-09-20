@@ -11,46 +11,14 @@
  *
  * 注：pi 只执行「整条消息以 / 开头」的命令；句中补全产物是文本引用（与 Claude Code 一致）
  *
- * ## 配置（settings.json 的 slashAnywhere 键，可省略）
- *   {
- *     "slashAnywhere": {
- *       "autoTriggerChars": ["$"],   // 句中自动弹层的触发符；/ 始终走 Tab 手动触发
- *       "autoSources": ["skill"]     // $ 自动触发通道补全什么：extension | prompt | skill 任意组合
- *     }
- *   }
+ * 配置见 ./config.ts
  */
-import type { ExtensionAPI, SlashCommandInfo } from '@earendil-works/pi-coding-agent'
+import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 import type { AutocompleteItem, AutocompleteProvider } from '@earendil-works/pi-tui'
-import { createDebug } from '../lib/debug'
-import { readExtensionConfig } from '../lib/settings'
+import { createDebug } from '../../lib/debug'
+import { escapeRe, loadAutoSources, loadAutoTriggerChars } from './config'
 
 const debug = createDebug('SLASH_DEBUG', '/tmp/slash-debug.log')
-
-/** 内置已占用的触发符（文件 @ / 引号 "），自定义时跳过 */
-const RESERVED_CHARS = new Set(['@', '#', '"'])
-
-/** 命令来源：扩展注册命令 / prompt 模板 / skill */
-type CommandSource = SlashCommandInfo['source']
-const COMMAND_SOURCES: readonly CommandSource[] = ['extension', 'prompt', 'skill']
-
-/** 配置归一化：单个非字母数字符号、去重、避开内置 */
-function loadAutoTriggerChars(): string[] {
-  const raw = readExtensionConfig('slashAnywhere')?.autoTriggerChars
-  if (!Array.isArray(raw)) return ['$']
-  const chars = raw.filter((c): c is string =>
-    typeof c === 'string' && c.length === 1 && /[^\w\s]/.test(c) && !RESERVED_CHARS.has(c))
-  return [...new Set(chars)]
-}
-
-/** $ 自动触发通道的补全源（settings.slashAnywhere.autoSources，缺省仅 skill）
- * / + Tab 手动通道始终补全全部，不受此配置影响 */
-function loadAutoSources(): ReadonlySet<CommandSource> {
-  const raw = readExtensionConfig('slashAnywhere')?.autoSources
-  if (!Array.isArray(raw)) return new Set<CommandSource>(['skill'])
-  const picked = raw.filter((s): s is CommandSource =>
-    typeof s === 'string' && (COMMAND_SOURCES as readonly string[]).includes(s))
-  return new Set<CommandSource>(picked.length > 0 ? picked : ['skill'])
-}
 
 let cachedAll: AutocompleteItem[] | null = null
 let cachedAuto: AutocompleteItem[] | null = null
@@ -144,9 +112,4 @@ export default function(pi: ExtensionAPI) {
     cachedAll = null
     cachedAuto = null
   })
-}
-
-/** 正则字符类转义 */
-function escapeRe(char: string): string {
-  return char.replace(/[\\\]^|-]/g, '\\$&')
 }
