@@ -5,13 +5,14 @@
  * 响应 { is_available, balance_infos: [{ currency, total_balance, ... }] }；
  * 金额为字符串，预充值制无百分比/重置概念，多币种各成一段
  */
-import type { ProviderAdapter, QuotaSegment } from './types'
+import type { ProviderAdapter, ProviderCredential, QuotaSegmentBase } from './types'
 
 const SYMBOL: Record<string, string> = { CNY: '¥', USD: '$' }
 
 export const deepseekAdapter: ProviderAdapter = {
+  providers: ['deepseek'],
   authKeys: ['deepseek'],
-  async fetchQuota(key, _authKey, signal): Promise<QuotaSegment[]> {
+  async fetchQuota({ key }: ProviderCredential, signal): Promise<QuotaSegmentBase[]> {
     const res = await fetch('https://api.deepseek.com/user/balance', {
       headers: { Authorization: `Bearer ${key}` },
       signal,
@@ -21,7 +22,7 @@ export const deepseekAdapter: ProviderAdapter = {
     const payload = (await res.json()) as {
       balance_infos?: Array<{ currency?: unknown; total_balance?: unknown }>
     }
-    const segments: QuotaSegment[] = []
+    const segments: QuotaSegmentBase[] = []
     for (const info of payload.balance_infos ?? []) {
       const total = Number(info.total_balance)
       if (!Number.isFinite(total)) continue

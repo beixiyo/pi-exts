@@ -179,7 +179,7 @@ agent 获得一个 `ask_user` 工具：提问以弹窗呈现而不是纯聊天�
 
 声明式状态栏：左右段落列表、逐段颜色（主题语义色 / 真彩 hex / 按用量自动变色的 `auto`）、后台节流刷新的厂商配额、嵌入输入框边框的会话名徽标（装饰现有编辑器，与 [pi-vim](https://www.npmjs.com/package/pi-vim) 兼容）
 
-支持的段落——左侧：`model`、`thinking`、`branch`、`sessionName`、`extensionStatus`；右侧：`context`、`quota`（展开为每个有凭证厂商的一段）。配额厂商：GLM Coding Plan（zai）、OpenRouter、DeepSeek、OpenAI（管理 key）。无数据的段自动跳过；窄终端时右侧从尾部逐段丢弃。用量百分比显示为「已用」（如 `ctx 42% used`）
+支持的段落——左侧：`model`、`thinking`、`branch`、`sessionName`、`extensionStatus`；右侧：`context`、`quota`（展开为当前厂商的配额段）。配额厂商：GLM Coding Plan（zai）、OpenAI Codex 订阅（ChatGPT 登录，走 codex CLI `/status` 同源的 `/wham/usage` 端点）、OpenRouter、DeepSeek、OpenAI（管理 key）。配额只拉取并显示当前模型 provider 的厂商，切换模型立即重拉。无数据的段自动跳过；窄终端时右侧从尾部逐段丢弃。用量百分比显示为「已用」（如 `ctx 42% used`）
 
 ```jsonc
 // ~/.pi/agent/settings.json —— 可省略；以下即完整默认值
@@ -269,7 +269,7 @@ markdown 行内 `` `代码` `` 以背景色渲染。fenced 代码块不受影响
 ## 隐私与安全
 
 - **读取**：`settings.json`、`auth.json`（只读——配额 adapter 只查自己的 API key）、经 pi API 读取会话数据
-- **网络**：只访问厂商配额/计费端点（z.ai / bigmodel.cn、openrouter.ai、api.deepseek.com、api.openai.com），且只对 `auth.json` 中存在凭证的厂商发起；外加每会话一次自动命名的 LLM 调用（用你配置的模型）
+- **网络**：只访问厂商配额/计费端点（z.ai / bigmodel.cn、chatgpt.com/backend-api、openrouter.ai、api.deepseek.com、api.openai.com），且只对 `auth.json` 中存在凭证的厂商发起；外加每会话一次自动命名的 LLM 调用（用你配置的模型）
 - **写入**：除 pi 自身的会话命名 API 外不写任何文件。剪贴板写入仅发生在显式动作（`/yank`、`/status`）——tmux 内经 OSC 52 转发到真实终端
 - 部分配额端点需要特定类型的 key（如 OpenRouter/OpenAI 管理 key）；没有就静默跳过该段
 

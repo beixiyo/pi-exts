@@ -9,12 +9,13 @@
  *
  * 产出本月（自然月）已花费；无凭证静默跳过
  */
-import type { ProviderAdapter, QuotaSegment } from './types'
+import type { ProviderAdapter, ProviderCredential, QuotaSegmentBase } from './types'
 
 export const openaiAdapter: ProviderAdapter = {
+  providers: ['openai'],
   authKeys: ['openai-admin'],
   envKey: 'OPENAI_ADMIN_KEY',
-  async fetchQuota(key, _authKey, signal): Promise<QuotaSegment[]> {
+  async fetchQuota({ key }: ProviderCredential, signal): Promise<QuotaSegmentBase[]> {
     const now = new Date()
     const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
     const res = await fetch(

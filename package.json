@@ -1,6 +1,6 @@
 {
   "name": "@jl-org/pi-exts",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Extension bundle for the Pi coding agent: ask_user dialog tool, /yank picker, statusline with provider quotas, session auto-rename, mid-sentence slash completion, and more",
   "type": "module",
   "license": "MIT",

@@ -1,21 +1,26 @@
 /**
- * 配额聚合：按 auth.json 实际存在的凭证并行拉取各厂商配额段
+ * 配额聚合：按当前模型 provider 挑选 adapter，用 auth.json 实际存在的凭证
+ * 拉取配额段，段统一标记 adapter 首个 provider id（供渲染层比对当前模型）
  *
- * 凭证解析顺序：adapter.authKeys（auth.json providers，按序取第一个有 key 的）
- * → adapter.envKey 环境变量。任一厂商失败静默跳过（footer 少一段，不打扰）
+ * 凭证解析顺序：adapter.authKeys（auth.json providers，按序取第一个有凭证的，
+ * API key 或 OAuth access token）→ adapter.envKey 环境变量
+ * 任一厂商失败静默跳过（footer 少一段，不打扰）
  */
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { getAgentDir } from '../settings'
+import { codexAdapter } from './codex'
 import { deepseekAdapter } from './deepseek'
 import { openaiAdapter } from './openai'
 import { openrouterAdapter } from './openrouter'
-import type { ProviderAdapter, QuotaSegment } from './types'
+import { asObject } from './parse'
+import type { ProviderAdapter, ProviderCredential, QuotaSegment } from './types'
 import { zaiAdapter } from './zai'
 
 /** 全部已启用的 adapter；新增厂商在此登记 */
 export const ADAPTERS: readonly ProviderAdapter[] = [
   zaiAdapter,
+  codexAdapter,
   openrouterAdapter,
   deepseekAdapter,
   openaiAdapter,
@@ -32,26 +37,38 @@ function readAuthProviders(): Record<string, unknown> {
   }
 }
 
-/** 单个 adapter 的凭证解析：authKeys 按序 → envKey */
-function resolveCredential(adapter: ProviderAdapter, providers: Record<string, unknown>): { key: string; authKey: string } | undefined {
+/** 单个 adapter 的凭证解析：entry 的 key（API key）或 access（OAuth token）按序 → envKey */
+function resolveCredential(adapter: ProviderAdapter, providers: Record<string, unknown>): ProviderCredential | undefined {
   for (const name of adapter.authKeys) {
-    const entry = providers[name]
-    const key = entry && typeof entry === 'object' ? (entry as Record<string, unknown>).key : undefined
-    if (typeof key === 'string' && key) return { key, authKey: name }
+    const entry = asObject(providers[name])
+    if (!entry) continue
+    const key = typeof entry.key === 'string' && entry.key
+      ? entry.key
+      : typeof entry.access === 'string' && entry.access
+      ? entry.access
+      : undefined
+    if (!key) continue
+    const accountId = typeof entry.accountId === 'string' && entry.accountId ? entry.accountId : undefined
+    const expiresAt = typeof entry.expires === 'number' && entry.expires > 0 ? entry.expires : undefined
+    return { key, authKey: name, ...(accountId ? { accountId } : {}), ...(expiresAt ? { expiresAt } : {}) }
   }
   const env = adapter.envKey ? process.env[adapter.envKey] : undefined
   return env ? { key: env, authKey: adapter.authKeys[0] ?? env } : undefined
 }
 
-/** 并行拉取全部有凭证的厂商；单厂超时 5s、失败静默，返回扁平段列表 */
-export async function fetchQuotas(): Promise<QuotaSegment[]> {
+/** 拉取配额段；provider 给定时只拉服务该 pi provider 的 adapter
+ * （如 'openai-codex'），缺省拉全部有凭证厂商（供调试/脚本使用）
+ * 单厂超时 5s、失败静默，返回扁平段列表 */
+export async function fetchQuotas(provider?: string): Promise<QuotaSegment[]> {
+  const adapters = provider !== undefined ? ADAPTERS.filter((a) => a.providers.includes(provider)) : ADAPTERS
   const providers = readAuthProviders()
-  const jobs = ADAPTERS
+  const jobs = adapters
     .map((adapter) => ({ adapter, credential: resolveCredential(adapter, providers) }))
-    .filter((job): job is { adapter: ProviderAdapter; credential: { key: string; authKey: string } } => job.credential !== undefined)
+    .filter((job): job is { adapter: ProviderAdapter; credential: ProviderCredential } => job.credential !== undefined)
     .map(async ({ adapter, credential }) => {
       try {
-        return await adapter.fetchQuota(credential.key, credential.authKey, AbortSignal.timeout(5_000))
+        const segs = await adapter.fetchQuota(credential, AbortSignal.timeout(5_000))
+        return segs.map((seg) => ({ ...seg, provider: adapter.providers[0] ?? '' }))
       }
       catch {
         return []

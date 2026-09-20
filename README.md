@@ -180,7 +180,7 @@ Appends a persistent card to the transcript (not sent to the LLM) with session n
 
 A declarative footer: left/right segment lists, per-segment colors (theme color, truecolor hex, or `auto` for usage-based coloring), provider quotas refreshed in the background, and a session-name badge embedded in the input border (delegates to the existing editor — works with [pi-vim](https://www.npmjs.com/package/pi-vim)).
 
-Supported segments — left: `model`, `thinking`, `branch`, `sessionName`, `extensionStatus`; right: `context`, `quota` (expands to one segment per provider with credentials). Quota providers: GLM Coding Plan (zai), OpenRouter, DeepSeek, OpenAI (admin key). Segments without data are skipped; on narrow terminals right segments drop from the tail. Usage percentages read as *used* (e.g. `ctx 42% used`).
+Supported segments — left: `model`, `thinking`, `branch`, `sessionName`, `extensionStatus`; right: `context`, `quota` (expands to that provider's quota segments). Quota providers: GLM Coding Plan (zai), OpenAI Codex subscription (ChatGPT sign-in, via the same `/wham/usage` endpoint as codex CLI's `/status`), OpenRouter, DeepSeek, OpenAI (admin key). Only the current model's provider quota is fetched and shown; switching models refetches immediately. Segments without data are skipped; on narrow terminals right segments drop from the tail. Usage percentages read as *used* (e.g. `ctx 42% used`).
 
 ```jsonc
 // ~/.pi/agent/settings.json — optional; this is the full default
@@ -270,7 +270,7 @@ Settings are read from `~/.pi/agent/settings.json` (global) merged with `<projec
 ## Privacy & security
 
 - **Reads**: `settings.json`, `auth.json` (read-only — quota providers look up their own API keys), session data via pi APIs.
-- **Network**: only provider quota/billing endpoints (z.ai / bigmodel.cn, openrouter.ai, api.deepseek.com, api.openai.com), and only for providers whose keys exist in `auth.json`. Plus one LLM call per session for auto-rename, using your configured model.
+- **Network**: only provider quota/billing endpoints (z.ai / bigmodel.cn, chatgpt.com/backend-api, openrouter.ai, api.deepseek.com, api.openai.com), and only for providers whose keys exist in `auth.json`. Plus one LLM call per session for auto-rename, using your configured model.
 - **Writes**: nothing outside pi's own session-name API. Clipboard writes happen only on explicit actions (`/yank`, `/status`) — with OSC 52 forwarding when inside tmux.
 - Quota endpoints need specific key types (e.g. OpenRouter/OpenAI management keys); if absent, the segment is simply skipped.
 

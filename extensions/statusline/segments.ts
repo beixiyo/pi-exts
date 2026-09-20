@@ -46,8 +46,13 @@ export function createRightTexts(ctx: ExtensionContext, getQuota: () => QuotaSeg
         const pct = usage.percent
         return [{ text: pct === null ? 'ctx ?' : `ctx ${Math.round(pct)}% used`, pct: pct ?? null }]
       }
-      case 'quota':
-        return getQuota().map(seg => ({ text: seg.text, pct: seg.pct }))
+      case 'quota': {
+        // 只显示当前模型 provider 的段；model 未就绪/切换间隙不显示旧厂商段
+        const provider = ctx.model?.provider
+        return provider
+          ? getQuota().filter((seg) => seg.provider === provider).map((seg) => ({ text: seg.text, pct: seg.pct }))
+          : []
+      }
     }
   }
 }

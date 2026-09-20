@@ -5,9 +5,9 @@
  * 产出三段：5h 窗口、周窗口、周重置倒计时
  * 响应 unit 3 为 5h 窗口、unit 6 为周窗口；百分比优先，缺省由计数换算
  */
-import type { ProviderAdapter, QuotaSegment } from './types'
+import type { ProviderAdapter, ProviderCredential, QuotaSegmentBase } from './types'
 
-interface QuotaWindow extends QuotaSegment {
+interface QuotaWindow extends QuotaSegmentBase {
   resetsAt?: number
 }
 
@@ -49,8 +49,9 @@ function quotaWindow(prefix: string, limit: Record<string, unknown>): QuotaWindo
 }
 
 export const zaiAdapter: ProviderAdapter = {
+  providers: ['zai'],
   authKeys: Object.keys(ORIGINS),
-  async fetchQuota(key, authKey, signal) {
+  async fetchQuota({ key, authKey }: ProviderCredential, signal) {
     const origin = ORIGINS[authKey] ?? ORIGINS.zai!
     const res = await fetch(`${origin}/api/monitor/usage/quota/limit`, {
       headers: { Authorization: key },
@@ -60,7 +61,7 @@ export const zaiAdapter: ProviderAdapter = {
 
     const payload: unknown = await res.json()
     const data = asObject(asObject(payload)?.data)
-    const segments: QuotaSegment[] = []
+    const segments: QuotaSegmentBase[] = []
     let weeklyReset: number | undefined
 
     const limits = Array.isArray(data?.limits) ? data.limits : []

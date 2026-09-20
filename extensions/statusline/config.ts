@@ -34,8 +34,14 @@ export type HexColor = `#${string}`
 export type SegmentColor = string | HexColor | 'auto'
 
 /** 归一化后的段落声明（非法配置项在加载时丢弃并记调试日志） */
-export interface LeftSegment { type: LeftSegmentType; color: SegmentColor }
-export interface RightSegment { type: RightSegmentType; color: SegmentColor }
+export interface LeftSegment {
+  type: LeftSegmentType
+  color: SegmentColor
+}
+export interface RightSegment {
+  type: RightSegmentType
+  color: SegmentColor
+}
 
 export interface StatuslineConfig {
   left: readonly LeftSegment[]
@@ -115,7 +121,6 @@ function parseSegment(
  * @param raw 已读取的原始配置对象；缺省从 settings.json 读取（测试可注入）
  */
 export function loadConfig(raw: Record<string, unknown> | undefined = readExtensionConfig('statusline')): StatuslineConfig {
-
   const parseList = (raw: unknown, types: ReadonlySet<string>, allowAuto: boolean, where: string) =>
     Array.isArray(raw)
       ? raw
@@ -130,8 +135,7 @@ export function loadConfig(raw: Record<string, unknown> | undefined = readExtens
     ? raw.autoLevels as Record<string, unknown>
     : {}
   const THEME_COLOR_NAMES = new Set(['text', 'muted', 'dim', 'success', 'warning', 'error', 'accent'])
-  const isColorValue = (value: unknown): value is string =>
-    typeof value === 'string' && (HEX_RE.test(value) || THEME_COLOR_NAMES.has(value))
+  const isColorValue = (value: unknown): value is string => typeof value === 'string' && (HEX_RE.test(value) || THEME_COLOR_NAMES.has(value))
   /** 单个警报色（warn/danger）：非法值回退默认 */
   const colorOf = (key: string, fallback: string): string => {
     const value = levels[key]

@@ -9,12 +9,13 @@
  * auth.json providers["openrouter-credits"].key（手动添加的独立键）
  * → 环境变量 OPENROUTER_MANAGEMENT_KEY
  */
-import type { ProviderAdapter, QuotaSegment } from './types'
+import type { ProviderAdapter, ProviderCredential, QuotaSegmentBase } from './types'
 
 export const openrouterAdapter: ProviderAdapter = {
+  providers: ['openrouter'],
   authKeys: ['openrouter-credits'],
   envKey: 'OPENROUTER_MANAGEMENT_KEY',
-  async fetchQuota(key, _authKey, signal): Promise<QuotaSegment[]> {
+  async fetchQuota({ key }: ProviderCredential, signal): Promise<QuotaSegmentBase[]> {
     const res = await fetch('https://openrouter.ai/api/v1/credits', {
       headers: { Authorization: `Bearer ${key}` },
       signal,

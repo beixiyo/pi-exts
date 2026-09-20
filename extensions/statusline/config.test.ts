@@ -29,7 +29,7 @@ describe('loadConfig 容错', () => {
     expect(cfg.left).toEqual(DEFAULTS.left)
   })
 
-  it("左侧 'auto' 降级为 'text'（仅用量段允许 auto）", () => {
+  it('左侧 \'auto\' 降级为 \'text\'（仅用量段允许 auto）', () => {
     const cfg = loadConfig({ left: [{ type: 'model', color: 'auto' }] })
     expect(cfg.left[0]).toEqual({ type: 'model', color: 'text' })
   })

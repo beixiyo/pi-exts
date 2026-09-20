@@ -11,29 +11,34 @@
  * 输入框徽标通过 getEditorComponent() 装饰现有编辑器（如 pi-vim 的
  * ModalEditor）而非替换，vim 功能不受影响
  *
- * 仅 TUI 模式启用；启动时和每轮结束后刷新配额（节流静默）
+ * 仅 TUI 模式启用；启动时和每轮结束后刷新配额（节流静默）；配额只拉当前
+ * 模型 provider 的厂商，切换模型立即重拉重绘（间隙不显示旧厂商段）
  * 调试：STATUSLINE_DEBUG=1 启动 pi，非法配置项写入 /tmp/statusline-debug.log
  */
-import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
+import type { ExtensionAPI, ExtensionContext } from '@earendil-works/pi-coding-agent'
 import { CustomEditor } from '@earendil-works/pi-coding-agent'
 import { fetchQuotas, type QuotaSegment } from '../../lib/quota'
 import { SessionBadgeEditor } from './badge'
 import { CONFIG } from './config'
-import { createLeftTexts, createRightTexts } from './segments'
 import { createRender } from './render'
+import { createLeftTexts, createRightTexts } from './segments'
 
 export default function(pi: ExtensionAPI) {
   let quota: QuotaSegment[] = []
   let requestRender: (() => void) | undefined
   let lastFetch = 0
   let fetching = false
+  /** 当前会话上下文（session_start 后可用），refreshQuota 读它的 model.provider */
+  let currentCtx: ExtensionContext | undefined
 
-  async function refreshQuota(): Promise<void> {
-    if (fetching || Date.now() - lastFetch < CONFIG.quotaRefreshMs) return
+  async function refreshQuota(force = false): Promise<void> {
+    if (fetching || (!force && Date.now() - lastFetch < CONFIG.quotaRefreshMs)) return
+    const provider = currentCtx?.model?.provider
+    if (!provider) return
     fetching = true
     lastFetch = Date.now()
     try {
-      quota = await fetchQuotas()
+      quota = await fetchQuotas(provider)
     }
     catch {
       // 静默：保留上次结果，下一轮再试
@@ -46,6 +51,7 @@ export default function(pi: ExtensionAPI) {
 
   pi.on('session_start', async (_event, ctx) => {
     if (ctx.mode !== 'tui') return
+    currentCtx = ctx
     void refreshQuota()
 
     // 输入框徽标：延迟一拍包装。局部扩展先于 package（pi-vim 等）初始化，
@@ -75,5 +81,10 @@ export default function(pi: ExtensionAPI) {
   // 每轮结束后配额已变化，刷新一次（内部节流）
   pi.on('turn_end', () => {
     void refreshQuota()
+  })
+
+  // 切换模型：改拉新 provider 的配额（绕过节流）；渲染层过滤保证间隙不显示旧厂商段
+  pi.on('model_select', () => {
+    void refreshQuota(true)
   })
 }
