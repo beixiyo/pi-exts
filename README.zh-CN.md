@@ -149,7 +149,7 @@ agent 获得一个 `ask_user` 工具：提问以弹窗呈现而不是纯聊天�
 // ~/.pi/agent/settings.json —— 可省略；缺省跟随 pi 默认模型
 {
   "autoRename": {
-    "model": "zai/glm-5-turbo", // "provider/model" 或 "provider/model:thinking"
+    "model": "zai/glm-5.3-flash", // "provider/model" 或 "provider/model:thinking"
     "thinkingLevel": "minimal", // off | minimal | low | medium | high | xhigh | max
     "maxLen": 24                // 标题最大字符数
   }
@@ -179,7 +179,9 @@ agent 获得一个 `ask_user` 工具：提问以弹窗呈现而不是纯聊天�
 
 声明式状态栏：左右段落列表、逐段颜色（主题语义色 / 真彩 hex / 按用量自动变色的 `auto`）、后台节流刷新的厂商配额、嵌入输入框边框的会话名徽标（装饰现有编辑器，与 [pi-vim](https://www.npmjs.com/package/pi-vim) 兼容）
 
-支持的段落——左侧：`model`、`thinking`、`branch`、`sessionName`、`extensionStatus`；右侧：`context`、`quota`（展开为当前厂商的配额段）。配额厂商：GLM Coding Plan（zai）、OpenAI Codex 订阅（ChatGPT 登录，走 codex CLI `/status` 同源的 `/wham/usage` 端点）、OpenRouter、DeepSeek、OpenAI（管理 key）。配额只拉取并显示当前模型 provider 的厂商，切换模型立即重拉。无数据的段自动跳过；窄终端时右侧从尾部逐段丢弃。用量百分比显示为「已用」（如 `ctx 42% used`）
+支持的段落——左侧：`model`、`thinking`、`branch`、`sessionName`、`extensionStatus`；右侧：`context`、`quota`（展开为当前厂商的配额段）。配额厂商：GLM Coding Plan（zai）、OpenAI Codex 订阅（ChatGPT 登录，走 codex CLI `/status` 同源的 `/wham/usage` 端点）、OpenRouter、DeepSeek、OpenAI（管理 key）。配额只拉取并显示当前模型 provider 的厂商，切换模型立即重拉。无数据的段自动跳过；窄终端时右侧从尾部逐段丢弃。用量百分比显示为「已用」（如 `ctx 42% 84K`）
+
+`contextStyle` —— context 段的显示风格：`pct-used`（默认，`ctx 42% 84K`，百分比 + 已用绝对值）、`pct`（`ctx 42% used`）、`pct-total`（`ctx 42%/200K`）、`used-total`（`ctx 84K/200K`）。`labels` —— 覆盖内置英文文案（`ctx`、`used`、`thinking`、`noModel`），适配你的语言；配额段的「% used」后缀同样跟随 `labels.used`
 
 ```jsonc
 // ~/.pi/agent/settings.json —— 可省略；以下即完整默认值
@@ -195,6 +197,10 @@ agent 获得一个 `ask_user` 工具：提问以弹窗呈现而不是纯聊天�
       { "type": "context", "color": "auto" },
       { "type": "quota", "color": "auto" }
     ],
+    "contextStyle": "pct-used",           // pct | pct-used | pct-total | used-total
+    "labels": {                            // 内置文案，可按语言覆盖
+      "ctx": "ctx", "used": "used", "thinking": "thinking", "noModel": "no-model"
+    },
     "autoLevels": {                       // 'auto' 变色：normal 为色板按段轮换，warn/danger 统一警报色
       "warnAt": 70, "dangerAt": 90,
       "normal": ["#4aa5f0", "#6dc7a8", "#42b3c2", "#98c379"], "warn": "#e5c07b", "danger": "#c24038"

@@ -4,7 +4,7 @@
  * ## 配置（~/.pi/agent/settings.json 的 autoRename 键，整段可省略，省省时跟随主模型）
  *   {
  *     "autoRename": {
- *       "model": "zai/glm-5-turbo",     // "provider/model" 或 "provider/model:thinking"
+ *       "model": "zai/glm-5.3-flash", // "provider/model" 或 "provider/model:thinking"
  *       "thinkingLevel": "minimal",     // off | minimal | low | medium | high | xhigh | max
  *       "maxLen": 24                    // 标题最大字符数
  *     }

@@ -59,4 +59,18 @@ describe('loadConfig 容错', () => {
     expect(loadConfig({ quotaRefreshMs: 100 }).quotaRefreshMs).toBe(DEFAULTS.quotaRefreshMs)
     expect(loadConfig({ quotaRefreshMs: 5000 }).quotaRefreshMs).toBe(5000)
   })
+
+  it('contextStyle 非法值回退默认，合法枚举通过', () => {
+    expect(loadConfig({ contextStyle: 'bogus' }).contextStyle).toBe(DEFAULTS.contextStyle)
+    expect(loadConfig({ contextStyle: 'used-total' }).contextStyle).toBe('used-total')
+    expect(loadConfig({}).contextStyle).toBe(DEFAULTS.contextStyle)
+  })
+
+  it('labels 逐项覆盖，空串/非字符串回退默认英文', () => {
+    const cfg = loadConfig({ labels: { ctx: '上下文', used: '', thinking: 42 } })
+    expect(cfg.labels.ctx).toBe('上下文')
+    expect(cfg.labels.used).toBe(DEFAULTS.labels.used)
+    expect(cfg.labels.thinking).toBe(DEFAULTS.labels.thinking)
+    expect(cfg.labels.noModel).toBe(DEFAULTS.labels.noModel)
+  })
 })

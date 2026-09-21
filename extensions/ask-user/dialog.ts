@@ -3,12 +3,15 @@
  *
  * 单焦点交互：可打印按键、退格、粘贴等全部进输入框；↑↓（跟随
  * tui.select.up/down 绑定）只走列表。enter 语义：输入框非空 → 提交
- * 自定义答案；空 → 提交当前选中项（多选模式提交全部勾选项）。这样
- * 用户无需在两个焦点区之间切换
+ * 自定义答案；空 → 提交当前选中项（多选模式提交全部勾选项）；无选项的
+ * 纯输入模式提交原始输入。这样用户无需在两个焦点区之间切换
+ * ctrl+v（app.clipboard.pasteImage）与主输入框对齐：剪贴板图片落盘插路径，
+ * 无图片退回文本粘贴
  */
-import type { Theme } from '@earendil-works/pi-coding-agent'
+import { keyText, type Theme } from '@earendil-works/pi-coding-agent'
 import type { Component, Focusable, KeybindingsManager } from '@earendil-works/pi-tui'
 import { Container, Input, Spacer, Text } from '@earendil-works/pi-tui'
+import { readClipboardText, saveClipboardImageToTemp } from '../../lib/clipboard'
 
 export class AskUserSelectComponent implements Component, Focusable {
   private readonly container = new Container()
@@ -18,6 +21,7 @@ export class AskUserSelectComponent implements Component, Focusable {
   private readonly checked = new Set<number>()
   private selectedIndex = 0
   private _focused = false
+  private readonly requestRender: () => void
 
   constructor(
     private readonly theme: Theme,
@@ -27,8 +31,10 @@ export class AskUserSelectComponent implements Component, Focusable {
     placeholder: string | undefined,
     private readonly done: (result: string | string[] | undefined) => void,
     private readonly multiple = false,
+    requestRender: () => void = () => {},
   ) {
     this.options = options
+    this.requestRender = requestRender
 
     this.container.addChild(new Spacer(1))
     this.container.addChild(new Text(theme.fg('accent', theme.bold(question)), 1, 0))
@@ -42,13 +48,15 @@ export class AskUserSelectComponent implements Component, Focusable {
     })
     this.container.addChild(this.input)
     this.container.addChild(new Spacer(1))
+    const pasteHint = `${keyText('app.clipboard.pasteImage')} paste image`
+    const selectHint = options.length > 0 ? '↑↓ select · ' : ''
     this.container.addChild(
       new Text(
         theme.fg(
           'dim',
           multiple
-            ? '↑↓ select · tab toggle · type for custom answer · enter confirm · esc cancel'
-            : '↑↓ select · type for custom answer · enter confirm · esc cancel',
+            ? `${selectHint}tab toggle · type for custom answer · ${pasteHint} · enter confirm · esc cancel`
+            : `${selectHint}type for custom answer · ${pasteHint} · enter confirm · esc cancel`,
         ),
         1,
         0,
@@ -69,16 +77,27 @@ export class AskUserSelectComponent implements Component, Focusable {
   }
 
   handleInput(data: string): void {
+    // 剪贴板粘贴（默认 ctrl+v）对齐主输入框：优先图片落盘插路径，无图片退回文本
+    if (this.kb.matches(data, 'app.clipboard.pasteImage')) {
+      void this.pasteFromClipboard()
+      return
+    }
     if (this.kb.matches(data, 'tui.select.cancel')) {
       this.done(undefined)
       return
     }
     if (this.kb.matches(data, 'tui.select.confirm') || this.kb.matches(data, 'tui.input.submit')) {
-      const custom = this.input.getValue().trim()
+      const value = this.input.getValue()
+      const custom = value.trim()
       if (this.multiple) {
         const selections = [...this.checked].sort((a, b) => a - b).map((i) => this.options[i]!).filter(Boolean)
         const answer = custom !== '' ? [...selections, custom] : selections
         this.done(answer.length > 0 ? answer : undefined)
+        return
+      }
+      // 纯输入模式：提交原始输入（空串也提交，与 pi 内置 ui.input 行为一致）
+      if (this.options.length === 0) {
+        this.done(value)
         return
       }
       if (custom !== '') {
@@ -112,6 +131,15 @@ export class AskUserSelectComponent implements Component, Focusable {
     }
     // 可打印字符、退格、左右移动、粘贴、撤销等全部交给输入框
     this.input.handleInput(data)
+  }
+
+  /** 剪贴板粘贴：图片落盘插入路径，无图片退回文本；完成后重绘 */
+  private async pasteFromClipboard(): Promise<void> {
+    const text = (await saveClipboardImageToTemp()) ?? await readClipboardText()
+    if (!text) return
+    // 经括号粘贴序列走 Input 的公开输入通路（其 handlePaste 为私有）
+    this.input.handleInput(`\x1b[200~${text}\x1b[201~`)
+    this.requestRender()
   }
 
   render(width: number): string[] {

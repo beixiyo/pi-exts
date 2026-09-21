@@ -27,6 +27,25 @@ export type LeftSegmentType = 'model' | 'thinking' | 'branch' | 'sessionName' | 
 /** 右侧段落标识：context 用量 + quota 各厂商配额段（动态展开） */
 export type RightSegmentType = 'context' | 'quota'
 
+/** context 段显示风格：
+ * - 'pct'       仅百分比（如 `ctx 42% used`）
+ * - 'pct-used'  百分比 + 已用 tokens（如 `ctx 42% 84K`，默认；绝对值补齐百分比缺失的余量信息）
+ * - 'pct-total' 百分比 / 总窗口（如 `ctx 42%/200K`；总窗口是常量，适合常切模型看窗口差异）
+ * - 'used-total' 已用/总量（如 `ctx 84K/200K`；纯绝对值，百分比由 auto 变色承载） */
+export type ContextStyle = 'pct' | 'pct-used' | 'pct-total' | 'used-total'
+
+/** statusline 固定文案（默认英文；非英文用户可整体或按需覆盖） */
+export interface StatuslineLabels {
+  /** context 段前缀，如 `ctx` */
+  ctx: string
+  /** 百分比后缀（pct 风格与 quota 段的 `% used`），如 `used` */
+  used: string
+  /** thinking 段前缀 */
+  thinking: string
+  /** 模型不可用时的占位 */
+  noModel: string
+}
+
 /** hex 色声明，如 '#4aa5f0'（#RRGGBB） */
 export type HexColor = `#${string}`
 
@@ -46,6 +65,8 @@ export interface RightSegment {
 export interface StatuslineConfig {
   left: readonly LeftSegment[]
   right: readonly RightSegment[]
+  contextStyle: ContextStyle
+  labels: StatuslineLabels
   autoLevels: { warnAt: number; dangerAt: number; normal: readonly string[]; warn: string; danger: string }
   separator: { left: string; right: string; color: string }
   hiddenStatusKeys: readonly string[]
@@ -65,6 +86,13 @@ export const DEFAULTS = {
     { type: 'context', color: 'auto' },
     { type: 'quota', color: 'auto' },
   ] as { type: RightSegmentType; color: SegmentColor }[],
+  contextStyle: 'pct-used',
+  labels: {
+    ctx: 'ctx',
+    used: 'used',
+    thinking: 'thinking',
+    noModel: 'no-model',
+  } satisfies StatuslineLabels,
   autoLevels: {
     warnAt: 70,
     dangerAt: 90,
@@ -86,6 +114,7 @@ export const DEFAULTS = {
 
 const LEFT_TYPES = new Set<LeftSegmentType>(['model', 'thinking', 'branch', 'sessionName', 'extensionStatus'])
 const RIGHT_TYPES = new Set<RightSegmentType>(['context', 'quota'])
+const CONTEXT_STYLES = new Set<ContextStyle>(['pct', 'pct-used', 'pct-total', 'used-total'])
 export const HEX_RE = /^#[0-9a-f]{6}$/i
 
 /** 单个段落声明校验：type 在白名单内；'auto' 仅用量段；其余任意非空字符串视为颜色 */
@@ -168,9 +197,36 @@ export function loadConfig(raw: Record<string, unknown> | undefined = readExtens
     ? raw.quotaRefreshMs
     : DEFAULTS.quotaRefreshMs
 
+  const styleRaw = raw?.contextStyle
+  const contextStyle = typeof styleRaw === 'string' && (CONTEXT_STYLES as Set<string>).has(styleRaw)
+    ? styleRaw as ContextStyle
+    : DEFAULTS.contextStyle
+  if (typeof styleRaw === 'string' && styleRaw !== contextStyle) {
+    debug(`invalid contextStyle ${JSON.stringify(styleRaw)} → ${DEFAULTS.contextStyle}`)
+  }
+
+  /** 文案覆盖：逐项接受非空字符串，其余回退默认英文 */
+  const labelsRaw = raw?.labels && typeof raw.labels === 'object' && !Array.isArray(raw.labels)
+    ? raw.labels as Record<string, unknown>
+    : {}
+  const labelOf = (key: keyof StatuslineLabels): string => {
+    const value = labelsRaw[key]
+    if (typeof value === 'string' && value.trim()) return value.trim()
+    if (value !== undefined) debug(`labels.${key} invalid → default`)
+    return DEFAULTS.labels[key]
+  }
+  const labels: StatuslineLabels = {
+    ctx: labelOf('ctx'),
+    used: labelOf('used'),
+    thinking: labelOf('thinking'),
+    noModel: labelOf('noModel'),
+  }
+
   return {
     left: left.length > 0 ? left : DEFAULTS.left,
     right: right.length > 0 ? right : DEFAULTS.right,
+    contextStyle,
+    labels,
     autoLevels: {
       warnAt: thresholdOf('warnAt', DEFAULTS.autoLevels.warnAt),
       dangerAt: thresholdOf('dangerAt', DEFAULTS.autoLevels.dangerAt),
