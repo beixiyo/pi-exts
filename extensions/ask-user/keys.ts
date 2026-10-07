@@ -14,7 +14,7 @@ const specialKeys: Readonly<Record<string, string>> = {
   escape: 'Esc',
   esc: 'Esc',
   tab: 'Tab',
-  space: '␠',
+  space: '␣',
   up: '↑',
   down: '↓',
   left: '←',
