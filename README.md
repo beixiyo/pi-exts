@@ -106,13 +106,19 @@ All configuration lives in `~/.pi/agent/settings.json` and is **entirely optiona
 <!-- screenshot: the dialog with an option list + custom answer input, ideally multi-select mode -->
 ![ask_user](https://github.com/beixiyo/pi-exts/releases/download/v0.1.0/ask-user.png)
 
-The agent gets an `ask_user` tool: questions as pop-up dialogs instead of plain chat text. Pass `questions: [...]` to ask several questions in sequence — each gets its own dialog and the result comes back as a tidy Q/A list; canceling at any point still returns the answers collected so far. With `options`, users pick from a list or type a custom answer at the bottom (single focus — typing goes to the input, ↑↓ goes to the list). With `multiple: true`, tab toggles checkboxes and enter submits all checked items. In non-interactive mode (`-p` / RPC) it returns an error instead of hanging.
+The agent gets an `ask_user` tool for clarifying requirements and decisions before acting on assumptions. It investigates facts available in code or docs itself and asks about remaining uncertainties. Pass related questions together in `questions: [...]`; answers return as a Q/A list.
+
+- **Key hints** use compact symbols: `^` = Ctrl, `⌥` = Alt, `⇧` = Shift, `⌘` = Super, `↵` = Enter. Keys are highlighted; descriptions stay dim.
+- **Input** wraps automatically; **Shift+Enter / Ctrl+J** inserts a newline. Ordinary **←/→** moves the cursor; **↑/↓** moves through options (or through text when there is no list).
+- **Alt+←/→** revisits questions while preserving text and selections. **Enter** confirms the current answer; on the last question it submits the batch, or returns to a question needing confirmation. Edited answers require reconfirmation.
+- With `multiple: true`, **Tab** toggles choices and **Enter** submits checked choices plus custom text. An exclusive **None of the above** choice is automatically appended. Enter without any choice or custom text shows a warning instead of canceling; explicitly checking None returns `(none selected)`.
+- Free-input questions still accept empty text. **Esc** cancels and returns only still-confirmed answers; unanswered questions and cancellation are never treated as approval. Non-interactive modes (`-p` / RPC / JSON) return an error instead of opening a dialog.
 
 ```jsonc
 // ~/.pi/agent/settings.json — optional
 {
   "askUser": {
-    "placeholder": "Custom answer (empty = use selection)" // input-box placeholder when the tool call omits one
+    "placeholder": "Custom answer (empty = use selection)" // editor hint when the tool call omits one
   }
 }
 ```

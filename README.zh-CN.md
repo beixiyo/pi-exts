@@ -105,13 +105,19 @@ pi -e ./pi-exts               # 或临时试跑工作区，不落盘
 <!-- screenshot: the dialog with an option list + custom answer input, ideally multi-select mode -->
 ![ask_user](https://github.com/beixiyo/pi-exts/releases/download/v0.1.0/ask-user.png)
 
-agent 获得一个 `ask_user` 工具：提问以弹窗呈现而不是纯聊天文本。带 `options` 时用户可从列表选择，也可在底部输入框自定义答案（单焦点交互——打字进输入框，↑↓ 走列表）。`multiple: true` 时 tab 勾选/取消、enter 提交全部勾选项。非交互模式（`-p` / RPC）返回错误而不是挂起
+agent 获得一个 `ask_user` 工具：遇到需求、行为、范围、偏好、取舍或权限不明确时，先提问再执行，不擅自猜测。代码、文档可查的事实先自行核实，仍有疑问再问。相关问题通过 `questions: [...]` 批量提出，返回规整 Q/A 结果
+
+- **快捷键提示**采用紧凑符号：`^` = Ctrl、`⌥` = Alt、`⇧` = Shift、`⌘` = Super、`↵` = Enter；快捷键高亮，描述淡灰
+- **输入框**自动折行，**Shift+Enter / Ctrl+J** 插入换行；普通 **←/→** 移动光标，**↑/↓** 切换选项（没有列表时移动文本光标）
+- **Alt+←/→** 切题，保留文本、勾选和光标状态；**Enter** 确认当前题，最后一题尝试提交整组。修改过的答案需要重新确认，有未确认题时自动返回补答
+- **多选题**用 **Tab** 勾选、**Enter** 提交勾选项与自定义文本；底部自动添加互斥的 **None of the above**。未勾选且未输入时 Enter 只提示，不会取消或跳过；主动勾选「不选择」返回 `(none selected)`
+- **纯输入题**仍允许空文本；**Esc** 取消时只返回仍有效的已确认答案，未回答或取消不代表同意。非交互模式（`-p` / RPC / JSON）返回错误而不是弹窗
 
 ```jsonc
 // ~/.pi/agent/settings.json —— 可省略
 {
   "askUser": {
-    "placeholder": "Custom answer (empty = use selection)" // 工具调用未带 placeholder 时输入框的占位提示
+    "placeholder": "Custom answer (empty = use selection)" // 工具调用未带 placeholder 时编辑器上方的提示
   }
 }
 ```
