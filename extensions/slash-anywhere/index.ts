@@ -4,7 +4,7 @@
  * pi 内置补全只在「当前行行首打 /」时给命令建议；pi-tui 的
  * setAutocompleteTriggerCharacters 显式过滤 '/'，扩展无法让句中 / 自动触发，
  * 因此提供两条触发通道（Codex 用 $、Claude Code 用句中 / 的折中）：
- * - 句中空白后打 <触发符>xxx → 自动弹层（默认 $，可配置；$ 不在过滤名单）
+ * - 句中空白后或换行后行首打 <触发符>xxx → 自动弹层（默认 $，可配置；$ 不在过滤名单）
  * - 句中空白后打 /xxx 再按 Tab → 手动弹层（force 路径不受过滤影响）
  * - 建议来自 getCommands()（命令/prompt/skill），选中后统一替换为 "/命令 " 形态
  * - 行首 / 场景原样委托内置 provider，行为不变（含参数补全）
@@ -29,10 +29,10 @@ export default function(pi: ExtensionAPI) {
 
     const autoChars = loadAutoTriggerChars()
     const autoSources = loadAutoSources()
-    /** 句中 token 集合：自动触发符 + '/'（手动）；不匹配行首（行首由内置处理） */
+    /** 句中 token 边界：空白或当前行行首（换行后的行首 pi-tui 也视为 token 边界并触发补全）；行首 '/' 由上方内置分支先行接管 */
     const midTokenRe = autoChars.length > 0
-      ? new RegExp(`\\s([${autoChars.map(escapeRe).join('')}/]\\S*)$`)
-      : /\s(\/\S*)$/
+      ? new RegExp(`(?:^|\\s)([${autoChars.map(escapeRe).join('')}/]\\S*)$`)
+      : /(?:^|\s)(\/\S*)$/
     const tokenStartRe = new RegExp(`^[${autoChars.map(escapeRe).join('')}/]`)
     const autoTokenStartRe = new RegExp(`^[${autoChars.map(escapeRe).join('')}]`)
 
@@ -40,7 +40,7 @@ export default function(pi: ExtensionAPI) {
       const toItems = (autoOnly: boolean): AutocompleteItem[] => {
         if (!autoOnly) {
           if (!cachedAll) {
-            cachedAll = pi.getCommands().map(cmd => ({
+            cachedAll = pi.getCommands().map((cmd) => ({
               value: cmd.name,
               label: cmd.name,
               ...(cmd.description ? { description: cmd.description } : {}),
@@ -50,8 +50,8 @@ export default function(pi: ExtensionAPI) {
         }
         if (!cachedAuto) {
           cachedAuto = pi.getCommands()
-            .filter(cmd => autoSources.has(cmd.source))
-            .map(cmd => ({
+            .filter((cmd) => autoSources.has(cmd.source))
+            .map((cmd) => ({
               value: cmd.name,
               label: cmd.name,
               ...(cmd.description ? { description: cmd.description } : {}),
