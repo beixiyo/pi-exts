@@ -4,7 +4,7 @@
  * ## 配置（~/.pi/agent/settings.json 的 slashAnywhere 键，可省略）
  *   {
  *     "slashAnywhere": {
- *       "autoTriggerChars": ["$"],   // 句中自动弹层的触发符；/ 始终走 Tab 手动触发
+ *       "autoTriggerChars": ["$"],   // 句中自动弹层的触发符；/ 始终走 Tab 手动触发（配置 / 会被忽略）
  *       "autoSources": ["skill"]     // $ 自动触发通道补全什么：extension | prompt | skill 任意组合
  *     }
  *   }
@@ -12,8 +12,9 @@
 import type { SlashCommandInfo } from '@earendil-works/pi-coding-agent'
 import { readExtensionConfig } from '../../lib/settings'
 
-/** 内置已占用的触发符（文件 @ / 引号 "），自定义时跳过 */
-const RESERVED_CHARS = new Set(['@', '#', '"'])
+/** 内置已占用的触发符（文件 @ / 引号 " / 手动通道 /），自定义时跳过；
+ * 配置 / 会让行首命令名被句中自动通道劫持，且与「/ 始终走 Tab 手动触发」矛盾 */
+const RESERVED_CHARS = new Set(['@', '#', '"', '/'])
 
 /** 命令来源：扩展注册命令 / prompt 模板 / skill */
 export type CommandSource = SlashCommandInfo['source']

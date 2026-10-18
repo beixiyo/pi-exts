@@ -36,6 +36,23 @@ export default function(pi: ExtensionAPI) {
     const tokenStartRe = new RegExp(`^[${autoChars.map(escapeRe).join('')}/]`)
     const autoTokenStartRe = new RegExp(`^[${autoChars.map(escapeRe).join('')}]`)
 
+    /** 未闭合引号前缀是否会被内置认可为引号路径（@"… 或位于 token 边界的 "…）：
+     * 正文中间的孤引号（如 abc"def 后的 $token）内置不认，不应据此让路
+     * 边界近似内置 isTokenStart：前字符为空白/引号/撇号/等号（内置还接受 CJK 标点边界，此处从简） */
+    function unclosedQuoteAtBoundary(beforeToken: string): boolean {
+      let inQuotes = false
+      let quoteStart = -1
+      for (let i = 0; i < beforeToken.length; i += 1) {
+        if (beforeToken[i] === '"') {
+          inQuotes = !inQuotes
+          if (inQuotes) quoteStart = i
+        }
+      }
+      if (!inQuotes) return false
+      const at = beforeToken[quoteStart - 1] === '@' ? quoteStart - 1 : quoteStart
+      return at === 0 || /[\s"'=]/u.test(beforeToken[at - 1] ?? '')
+    }
+
     ctx.ui.addAutocompleteProvider((current): AutocompleteProvider => {
       const toItems = (autoOnly: boolean): AutocompleteItem[] => {
         if (!autoOnly) {
@@ -66,23 +83,34 @@ export default function(pi: ExtensionAPI) {
         async getSuggestions(lines, cursorLine, cursorCol, options) {
           const before = (lines[cursorLine] ?? '').slice(0, cursorCol)
           debug('getSuggestions', JSON.stringify(before), 'force:', options.force)
-
-          // 行首 /（当前行以 / 开头）→ 内置原路径（命令名 + 参数补全）
-          if (before.startsWith('/')) {
-            return current.getSuggestions(lines, cursorLine, cursorCol, options)
-          }
-
           const match = before.match(midTokenRe)
-          if (!match) {
+          const token = match?.[1]
+
+          // 句中 token 形态判定（与 applyCompletion 的路径委托条件对称）：
+          // - pathLike：token 含子斜杠（$docs/、~/Doc），是路径前缀而非命令引用
+          // - quoted：token 前有未闭合引号，处于引号文本或 @"... 跨空格引号路径内部，
+          //   内置对这类 token 有完整文件补全，接管会破坏路径
+          const beforeToken = token ? before.slice(0, before.length - token.length) : ''
+          const pathLike = token !== undefined && token.slice(1).includes('/')
+          const quoted = unclosedQuoteAtBoundary(beforeToken)
+          // 句中自动 token：<触发符> 开头（/ 属手动通道）、非路径、不在引号内
+          const autoToken = token !== undefined && autoTokenStartRe.test(token) && !pathLike && !quoted
+
+          // 行首 / 且当前 token 非句中自动 token → 内置原路径（命令名 + 参数补全）
+          // 补全产物「/命令 」会让整行以 / 开头，其后继续打 <触发符> 仍属句中自动通道，不能被此分支吞掉
+          if (before.startsWith('/') && !autoToken) {
+            return current.getSuggestions(lines, cursorLine, cursorCol, options)
+          }
+          // 无 token，或 token 是路径子斜杠 / 引号内文本 → 内置文件与参数补全
+          if (!match || pathLike || quoted) {
             return current.getSuggestions(lines, cursorLine, cursorCol, options)
           }
 
-          const token = match[1]
-          const query = token.slice(1).toLowerCase()
+          const query = token!.slice(1).toLowerCase()
           // $ 自动触发通道只补 autoSources（缺省仅 skill）；/ + Tab 手动通道补全全部
-          const items = toItems(autoTokenStartRe.test(token)).filter((item) => item.value.toLowerCase().includes(query))
+          const items = toItems(autoToken).filter((item) => item.value.toLowerCase().includes(query))
           if (items.length === 0) return null
-          return { items, prefix: token }
+          return { items, prefix: token! }
         },
 
         applyCompletion(lines, cursorLine, cursorCol, item, prefix) {

@@ -2,6 +2,7 @@
  * Statusline 段落取数：左侧固定段 + 右侧用量段的文本与百分比来源
  */
 import type { ExtensionContext, ReadonlyFooterDataProvider } from '@earendil-works/pi-coding-agent'
+import { stripTerminalSequences } from '@earendil-works/pi-tui'
 import type { QuotaSegment } from '../../lib/quota'
 import { CONFIG, type ContextStyle, type LeftSegmentType, type RightSegmentType, type StatuslineLabels } from './config'
 
@@ -49,7 +50,7 @@ export function localizeQuotaText(text: string, used: string): string {
   return used === 'used' ? text : text.replace(/% used$/, `% ${used}`)
 }
 
-/** 构造左侧段取文本函数（extensionStatus 可产出多段），无数据返回空数组 */
+/** 构造左侧段取文本函数，无数据返回空数组（扩展状态不在主行，见 createStatusTexts） */
 export function createLeftTexts(ctx: ExtensionContext, footerData: ReadonlyFooterDataProvider): (type: LeftSegmentType) => string[] {
   return (type) => {
     switch (type) {
@@ -65,12 +66,29 @@ export function createLeftTexts(ctx: ExtensionContext, footerData: ReadonlyFoote
         const name = ctx.sessionManager.getSessionName()
         return name ? [name] : []
       }
-      case 'extensionStatus':
-        return [...footerData.getExtensionStatuses()]
-          .filter(([key]) => !CONFIG.hiddenStatusKeys.includes(key))
-          .map(([, status]) => status)
     }
   }
+}
+
+/** 扩展状态文本清洗：先剥全部终端转义序列（SGR 含冒号形式 / OSC / APC / 光标与清屏 CSI，
+ * 借 pi-tui 的 stripTerminalSequences），再归一残余控制字符并压缩空白
+ * 上游扩展（如 pi-background-tasks）可能把硬编码 ANSI 颜色写进 setStatus 文本，
+ * 剥掉后由本扩展统一配色，避免污染色板与单行布局；纯序列状态清洗后为空，不占行 */
+export function sanitizeStatusText(text: string): string {
+  return stripTerminalSequences(text)
+    .replace(/[\r\n\t]/g, ' ')
+    .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '')
+    .replace(/ +/g, ' ')
+    .trim()
+}
+
+/** 构造扩展状态独立行取文本函数：hiddenStatusKeys 过滤 + 清洗，
+ * 无可显示状态时返回空数组（footer 不占行） */
+export function createStatusTexts(footerData: ReadonlyFooterDataProvider): () => string[] {
+  return () => [...footerData.getExtensionStatuses()]
+    .filter(([key]) => !CONFIG.hiddenStatusKeys.includes(key))
+    .map(([, status]) => sanitizeStatusText(status))
+    .filter((text) => text.length > 0)
 }
 
 /** 构造右侧段取文本与用量百分比函数（可一扩多），无数据返回空数组

@@ -186,7 +186,9 @@ Appends a persistent card to the transcript (not sent to the LLM) with session n
 
 A declarative footer: left/right segment lists, per-segment colors (theme color, truecolor hex, or `auto` for usage-based coloring), provider quotas refreshed in the background, and a session-name badge embedded in the input border (delegates to the existing editor — works with [pi-vim](https://www.npmjs.com/package/pi-vim)).
 
-Supported segments — left: `model`, `thinking`, `branch`, `sessionName`, `extensionStatus`; right: `context`, `quota` (expands to that provider's quota segments). Quota providers: GLM Coding Plan (zai), OpenAI Codex subscription (ChatGPT sign-in, via the same `/wham/usage` endpoint as codex CLI's `/status`), OpenRouter, DeepSeek, OpenAI (admin key). Only the current model's provider quota is fetched and shown; switching models refetches immediately. Segments without data are skipped; on narrow terminals right segments drop from the tail. Usage percentages read as *used* (e.g. `ctx 42% 84K`).
+Main-row segments — left: `model`, `thinking`, `branch`, `sessionName`; right: `context`, `quota` (expands to that provider's quota segments). Quota providers: GLM Coding Plan (zai), OpenAI Codex subscription (ChatGPT sign-in, via the same `/wham/usage` endpoint as codex CLI's `/status`), OpenRouter, DeepSeek, OpenAI (admin key). Only the current model's provider quota is fetched and shown; switching models refetches immediately. 
+
+To debug a missing quota: start pi with `QUOTA_DEBUG=1` and check `/tmp/quota-debug.log` (per-provider ok/failed/no-credential lines with server code+msg)
 
 `contextStyle` — how the context segment is rendered: `pct-used` (default, `ctx 42% 84K` — percentage plus absolute tokens), `pct` (`ctx 42% used`), `pct-total` (`ctx 42%/200K`), `used-total` (`ctx 84K/200K`). `labels` — override the built-in English texts (`ctx`, `used`, `thinking`, `noModel`) for your locale; quota `% used` suffixes follow `labels.used` too.
 
@@ -197,8 +199,7 @@ Supported segments — left: `model`, `thinking`, `branch`, `sessionName`, `exte
     "left": [
       { "type": "model", "color": "#4aa5f0" },
       { "type": "thinking", "color": "#c678dd" },
-      { "type": "branch", "color": "#98c379" },
-      { "type": "extensionStatus", "color": "#e5c07b" }
+      { "type": "branch", "color": "#98c379" }
     ],
     "right": [
       { "type": "context", "color": "auto" },
@@ -213,7 +214,8 @@ Supported segments — left: `model`, `thinking`, `branch`, `sessionName`, `exte
       "normal": ["#4aa5f0", "#6dc7a8", "#42b3c2", "#98c379"], "warn": "#e5c07b", "danger": "#c24038"
     },
     "separator": { "left": " · ", "right": "  ", "color": "#7f848e" },
-    "hiddenStatusKeys": ["mcp"],          // extension status keys to hide
+    "statusRow": { "enabled": true, "color": "muted" },  // dedicated extension-status row (footer line 2)
+    "hiddenStatusKeys": [],               // extension status keys to hide from the status row (none by default)
     "quotaRefreshMs": 60000,              // quota refresh throttle
     "badge": {                            // session-name badge on the input border
       "enabled": true,
@@ -229,7 +231,7 @@ Supported segments — left: `model`, `thinking`, `branch`, `sessionName`, `exte
 <!-- screenshot: typing mid-sentence with "$" triggering the command autocomplete -->
 ![slash anywhere](https://github.com/beixiyo/pi-exts/releases/download/v0.1.0/slash-anywhere.png)
 
-pi only offers command completion when `/` starts the line. This adds mid-sentence completion: type `$cmd` after a space to trigger automatically, or `/cmd` + Tab manually. The `$` channel suggests **skills only** by default (`autoSources`); the `/` + Tab channel suggests everything (commands, prompts, skills). Line-leading `/` keeps pi's built-in behavior untouched.
+pi only offers command completion when `/` starts the line. This adds mid-sentence completion: type `$cmd` after a space to trigger automatically, or `/cmd` + Tab manually. The `$` channel suggests **skills only** by default (`autoSources`); the `/` + Tab channel suggests everything (commands, prompts, skills). Line-leading `/` command-name and argument completion keeps pi's built-in behavior; the exception is a later `$cmd` token on such a line, which the mid-sentence auto channel serves first (e.g. referencing another skill after a completed one).
 
 ```jsonc
 // ~/.pi/agent/settings.json — optional

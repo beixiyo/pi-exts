@@ -48,6 +48,42 @@ function quotaWindow(prefix: string, limit: Record<string, unknown>): QuotaWindo
   return { text: `${prefix} ${Math.round(pct)}% used`, pct, ...{ ...(resetsAt !== undefined ? { resetsAt } : {}) } }
 }
 
+/**
+ * 解析 /quota/limit 响应为配额段；success:false / code≠200 的服务端拒绝抛错
+ * 带上服务端 code+msg，供 QUOTA_DEBUG 排查；垃圾形态容错返回空段
+ */
+export function parseQuotaSegments(payload: unknown): QuotaSegmentBase[] {
+  const root = asObject(payload)
+  if (root && (root.success === false || (typeof root.code === 'number' && root.code !== 200))) {
+    throw new Error(`zai quota api: code=${String(root.code)} msg=${typeof root.msg === 'string' ? root.msg : ''}`)
+  }
+  const data = asObject(root?.data)
+  const segments: QuotaSegmentBase[] = []
+  let weeklyReset: number | undefined
+
+  const limits = Array.isArray(data?.limits) ? data.limits : []
+  for (const raw of limits) {
+    const limit = asObject(raw)
+    if (!limit) continue
+    if (limit.type !== 'TOKENS_LIMIT' && limit.type !== 'CREDIT_LIMIT') continue
+    if (limit.unit === 3) {
+      const seg = quotaWindow('5h', limit)
+      if (seg) segments.push(seg)
+    }
+    else if (limit.unit === 6) {
+      const seg = quotaWindow('wk', limit)
+      if (seg) {
+        segments.push(seg)
+        weeklyReset = seg.resetsAt
+      }
+    }
+  }
+  if (weeklyReset !== undefined) {
+    segments.push({ text: `wk reset ${fmtDuration(weeklyReset - Date.now())}`, pct: null })
+  }
+  return segments
+}
+
 export const zaiAdapter: ProviderAdapter = {
   providers: ['zai'],
   authKeys: Object.keys(ORIGINS),
@@ -58,32 +94,6 @@ export const zaiAdapter: ProviderAdapter = {
       signal,
     })
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
-
-    const payload: unknown = await res.json()
-    const data = asObject(asObject(payload)?.data)
-    const segments: QuotaSegmentBase[] = []
-    let weeklyReset: number | undefined
-
-    const limits = Array.isArray(data?.limits) ? data.limits : []
-    for (const raw of limits) {
-      const limit = asObject(raw)
-      if (!limit) continue
-      if (limit.type !== 'TOKENS_LIMIT' && limit.type !== 'CREDIT_LIMIT') continue
-      if (limit.unit === 3) {
-        const seg = quotaWindow('5h', limit)
-        if (seg) segments.push(seg)
-      }
-      else if (limit.unit === 6) {
-        const seg = quotaWindow('wk', limit)
-        if (seg) {
-          segments.push(seg)
-          weeklyReset = seg.resetsAt
-        }
-      }
-    }
-    if (weeklyReset !== undefined) {
-      segments.push({ text: `wk reset ${fmtDuration(weeklyReset - Date.now())}`, pct: null })
-    }
-    return segments
+    return parseQuotaSegments(await res.json())
   },
 }

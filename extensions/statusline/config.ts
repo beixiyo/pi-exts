@@ -2,9 +2,12 @@
  * Statusline 配置：类型、默认值与归一化（非法项丢弃/降级并回退默认，绝不抛错）
  *
  * ## 配置（~/.pi/agent/settings.json 的 statusline 键，整段可省略）
- * - left / right：段落声明数组，按序渲染；删一项即隐藏该段，换序即调整显示顺序；
+ * - left / right：主行段落声明数组，按序渲染；删一项即隐藏该段，换序即调整显示顺序；
  *   某段无数据（如不在 git 仓库、未命名会话）时自动跳过；right 的 quota 段会
  *   动态展开为各厂商有数据的配额段；窄终端时 right 从数组尾部开始逐段丢弃
+ * - statusRow：扩展状态独立行（footer 第二行，主行始终独占渲染）；其他扩展经
+ *   setStatus 发布的文本经清洗（剥 ANSI 色码与控制字符）后以统一配色渲染，
+ *   无状态时不占行；hiddenStatusKeys 过滤键。旧版左段 extensionStatus 已移除
  * - color 三种写法：
  *   1. 主题语义色（ThemeColor 名，如 'text'/'muted'/'success'，跟随 pi 主题）
  *   2. 真彩 hex（如 '#4aa5f0'，直接输出 24-bit 色；256 色终端自动降级最近色）
@@ -12,7 +15,7 @@
  * - autoLevels：'auto' 变色档位（normal 为色板：未达 warn 阈值时各用量段按序轮换取色，
  *   保证段间区分；warn/danger 为统一警报色）
  * - separator：段落间分隔符与分隔符颜色
- * - hiddenStatusKeys：隐藏的扩展状态键（footer 不显示，功能本身不受影响）
+ * - hiddenStatusKeys：隐藏的扩展状态键（statusRow 不显示，功能本身不受影响）
  * - quotaRefreshMs：配额刷新节流（毫秒）
  * - badge：输入框徽标（会话名以背景色块嵌入输入框上边框右端）
  */
@@ -22,7 +25,7 @@ import { readExtensionConfig } from '../../lib/settings'
 export const debug = createDebug('STATUSLINE_DEBUG', '/tmp/statusline-debug.log')
 
 /** 左侧段落标识（决定取数逻辑） */
-export type LeftSegmentType = 'model' | 'thinking' | 'branch' | 'sessionName' | 'extensionStatus'
+export type LeftSegmentType = 'model' | 'thinking' | 'branch' | 'sessionName'
 
 /** 右侧段落标识：context 用量 + quota 各厂商配额段（动态展开） */
 export type RightSegmentType = 'context' | 'quota'
@@ -69,6 +72,8 @@ export interface StatuslineConfig {
   labels: StatuslineLabels
   autoLevels: { warnAt: number; dangerAt: number; normal: readonly string[]; warn: string; danger: string }
   separator: { left: string; right: string; color: string }
+  /** 扩展状态独立行（footer 第二行）：enabled 开关，color 统一配色（主题色/hex，不支持 auto） */
+  statusRow: { enabled: boolean; color: SegmentColor }
   hiddenStatusKeys: readonly string[]
   quotaRefreshMs: number
   badge: { enabled: boolean; bg: HexColor; fg: HexColor | undefined; maxWidth: number | null }
@@ -80,7 +85,6 @@ export const DEFAULTS = {
     { type: 'model', color: '#4aa5f0' },
     { type: 'thinking', color: '#c678dd' },
     { type: 'branch', color: '#98c379' },
-    { type: 'extensionStatus', color: '#e5c07b' },
   ] as { type: LeftSegmentType; color: SegmentColor }[],
   right: [
     { type: 'context', color: 'auto' },
@@ -102,7 +106,10 @@ export const DEFAULTS = {
     danger: '#c24038',
   },
   separator: { left: ' · ', right: '  ', color: '#7f848e' },
-  hiddenStatusKeys: ['mcp'],
+  statusRow: { enabled: true, color: 'muted' },
+  // 默认不隐藏任何键：状态已在独立行且经清洗，是否屏蔽交由用户决定
+  // （历史上默认隐藏 'mcp'，那时 mcp 状态来自需单独安装的 mcp 插件，现在内置 pi 已不发布该键）
+  hiddenStatusKeys: [],
   quotaRefreshMs: 60_000,
   badge: {
     enabled: true,
@@ -112,7 +119,7 @@ export const DEFAULTS = {
   },
 } satisfies StatuslineConfig
 
-const LEFT_TYPES = new Set<LeftSegmentType>(['model', 'thinking', 'branch', 'sessionName', 'extensionStatus'])
+const LEFT_TYPES = new Set<LeftSegmentType>(['model', 'thinking', 'branch', 'sessionName'])
 const RIGHT_TYPES = new Set<RightSegmentType>(['context', 'quota'])
 const CONTEXT_STYLES = new Set<ContextStyle>(['pct', 'pct-used', 'pct-total', 'used-total'])
 export const HEX_RE = /^#[0-9a-f]{6}$/i
@@ -189,6 +196,17 @@ export function loadConfig(raw: Record<string, unknown> | undefined = readExtens
   const badge = raw?.badge && typeof raw.badge === 'object' && !Array.isArray(raw.badge)
     ? raw.badge as Record<string, unknown>
     : {}
+
+  const statusRowRaw = raw?.statusRow && typeof raw.statusRow === 'object' && !Array.isArray(raw.statusRow)
+    ? raw.statusRow as Record<string, unknown>
+    : {}
+  const statusRowColorRaw = typeof statusRowRaw.color === 'string' ? statusRowRaw.color.trim() : ''
+  const statusRowColorValid = HEX_RE.test(statusRowColorRaw) || THEME_COLOR_NAMES.has(statusRowColorRaw)
+  const statusRowColor = statusRowColorRaw === 'auto'
+    ? (debug(`statusRow.color 'auto' → 'muted' (无用量语义)`), 'muted')
+    : statusRowColorRaw && statusRowColorValid
+      ? statusRowColorRaw
+      : (statusRowColorRaw && debug(`statusRow.color ${JSON.stringify(statusRowColorRaw)} invalid → '${DEFAULTS.statusRow.color}'`), DEFAULTS.statusRow.color)
   const badgeBg = typeof badge.bg === 'string' && HEX_RE.test(badge.bg) ? badge.bg as HexColor : DEFAULTS.badge.bg
   const badgeFg = typeof badge.fg === 'string' && HEX_RE.test(badge.fg) ? badge.fg as HexColor : DEFAULTS.badge.fg
   const badgeWidth = typeof badge.maxWidth === 'number' && Number.isInteger(badge.maxWidth) && badge.maxWidth >= 4 ? badge.maxWidth : DEFAULTS.badge.maxWidth
@@ -238,6 +256,10 @@ export function loadConfig(raw: Record<string, unknown> | undefined = readExtens
       left: typeof sep.left === 'string' && sep.left ? sep.left : DEFAULTS.separator.left,
       right: typeof sep.right === 'string' && sep.right ? sep.right : DEFAULTS.separator.right,
       color: sepColor,
+    },
+    statusRow: {
+      enabled: statusRowRaw.enabled !== false,
+      color: statusRowColor,
     },
     hiddenStatusKeys: Array.isArray(raw?.hiddenStatusKeys)
       ? raw.hiddenStatusKeys.filter((k): k is string => typeof k === 'string')

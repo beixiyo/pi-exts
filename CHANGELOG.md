@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.5.0 - 2026-10-18
+
+### 新增
+
+- **statusline 扩展状态独立行**：其他扩展经 `setStatus` 发布的状态渲染在 footer 第二行（`statusRow` 配置）
+- **配额拉取调试日志**：`QUOTA_DEBUG=1` 启动 pi 后，各厂商配额拉取的成功/失败/缺凭证写入 `/tmp/quota-debug.log`
+
+### 变更
+
+- **statusline 移除左段 `extensionStatus`**：由 `statusRow` 取代（breaking：旧配置中的该段会被丢弃，请改用 `statusRow`）
+- **statusline 默认不再隐藏 `mcp` 状态键**：该键来自需单独安装的 mcp 插件时代，内置 pi 已不发布；`hiddenStatusKeys` 缺省为空，交由用户决定
+
+### 修复
+
+- **slash-anywhere 补全产物后无法二次触发**：补全产物「/命令 」使整行以 `/` 开头，其后继续打 `$` 被行首 `/` 委托分支吞掉；引号路径（`@"a b $x`）与子斜杠路径（`~/Doc`、`$docs/`）交还内置文件补全（仅内置认可的边界开引号让路，正文孤引号不抑制 `$` 补全），配置 `/` 为触发符被忽略（`/` 始终走 Tab 手动通道）
+
+
 ## 0.4.1 - 2026-10-10
 
 ### 修复

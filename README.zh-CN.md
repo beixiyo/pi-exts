@@ -185,7 +185,9 @@ agent 获得一个 `ask_user` 工具：遇到需求、行为、范围、偏好�
 
 声明式状态栏：左右段落列表、逐段颜色（主题语义色 / 真彩 hex / 按用量自动变色的 `auto`）、后台节流刷新的厂商配额、嵌入输入框边框的会话名徽标（装饰现有编辑器，与 [pi-vim](https://www.npmjs.com/package/pi-vim) 兼容）
 
-支持的段落——左侧：`model`、`thinking`、`branch`、`sessionName`、`extensionStatus`；右侧：`context`、`quota`（展开为当前厂商的配额段）。配额厂商：GLM Coding Plan（zai）、OpenAI Codex 订阅（ChatGPT 登录，走 codex CLI `/status` 同源的 `/wham/usage` 端点）、OpenRouter、DeepSeek、OpenAI（管理 key）。配额只拉取并显示当前模型 provider 的厂商，切换模型立即重拉。无数据的段自动跳过；窄终端时右侧从尾部逐段丢弃。用量百分比显示为「已用」（如 `ctx 42% 84K`）
+主行段落——左侧：`model`、`thinking`、`branch`、`sessionName`；右侧：`context`、`quota`（展开为当前厂商的配额段）。配额厂商：GLM Coding Plan（zai）、OpenAI Codex 订阅（ChatGPT 登录，走 codex CLI `/status` 同源的 `/wham/usage` 端点）、OpenRouter、DeepSeek、OpenAI（管理 key）。配额只拉取并显示当前模型 provider 的厂商，切换模型立即重拉
+
+排查配额不显示：`QUOTA_DEBUG=1` 启动 pi 后查看 `/tmp/quota-debug.log`（记录各厂商成功/失败/缺凭证与服务端 code+msg）
 
 `contextStyle` —— context 段的显示风格：`pct-used`（默认，`ctx 42% 84K`，百分比 + 已用绝对值）、`pct`（`ctx 42% used`）、`pct-total`（`ctx 42%/200K`）、`used-total`（`ctx 84K/200K`）。`labels` —— 覆盖内置英文文案（`ctx`、`used`、`thinking`、`noModel`），适配你的语言；配额段的「% used」后缀同样跟随 `labels.used`
 
@@ -196,8 +198,7 @@ agent 获得一个 `ask_user` 工具：遇到需求、行为、范围、偏好�
     "left": [
       { "type": "model", "color": "#4aa5f0" },
       { "type": "thinking", "color": "#c678dd" },
-      { "type": "branch", "color": "#98c379" },
-      { "type": "extensionStatus", "color": "#e5c07b" }
+      { "type": "branch", "color": "#98c379" }
     ],
     "right": [
       { "type": "context", "color": "auto" },
@@ -212,7 +213,8 @@ agent 获得一个 `ask_user` 工具：遇到需求、行为、范围、偏好�
       "normal": ["#4aa5f0", "#6dc7a8", "#42b3c2", "#98c379"], "warn": "#e5c07b", "danger": "#c24038"
     },
     "separator": { "left": " · ", "right": "  ", "color": "#7f848e" },
-    "hiddenStatusKeys": ["mcp"],          // 要隐藏的扩展状态键
+    "statusRow": { "enabled": true, "color": "muted" },  // 扩展状态独立行（footer 第二行）
+    "hiddenStatusKeys": [],               // statusRow 要隐藏的扩展状态键（默认不隐藏）
     "quotaRefreshMs": 60000,              // 配额刷新节流（毫秒）
     "badge": {                            // 输入框边框的会话名徽标
       "enabled": true,
@@ -228,7 +230,7 @@ agent 获得一个 `ask_user` 工具：遇到需求、行为、范围、偏好�
 <!-- screenshot: typing mid-sentence with "$" triggering the command autocomplete -->
 ![slash anywhere](https://github.com/beixiyo/pi-exts/releases/download/v0.1.0/slash-anywhere.png)
 
-pi 只在「行首打 /」时提供命令补全。本扩展加入句中补全：空白后打 `$cmd` 自动弹层，或 `/cmd` + Tab 手动触发。`$` 通道默认**只建议 skill**（可用 `autoSources` 调整）；`/` + Tab 手动通道始终建议全部（命令、prompt、skill）。行首 `/` 场景保持 pi 内置行为不变
+pi 只在「行首打 /」时提供命令补全。本扩展加入句中补全：空白后打 `$cmd` 自动弹层，或 `/cmd` + Tab 手动触发。`$` 通道默认**只建议 skill**（可用 `autoSources` 调整）；`/` + Tab 手动通道始终建议全部（命令、prompt、skill）。行首 `/` 的命令名与参数补全保持 pi 内置行为；例外：行内后续打 `$cmd` 的句中自动通道优先生效（如 skill 补全产物后继续引用）
 
 ```jsonc
 // ~/.pi/agent/settings.json —— 可省略

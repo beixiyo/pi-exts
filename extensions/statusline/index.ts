@@ -1,7 +1,7 @@
 /**
  * Statusline — 声明式配置的彩色 footer（色板参照 tokyonight-pretty_cat.vim）
  *
- * 装配层：配额后台刷新、输入框徽标挂载、footer 组装
+ * 装配层：配额后台刷新、输入框徽标挂载、footer 组装（主行 + 扩展状态独立行）
  * 配置与默认值见 ./config.ts，颜色见 ./colors.ts，徽标见 ./badge.ts，
  * 段落取数见 ./segments.ts，单行渲染见 ./render.ts
  *
@@ -21,7 +21,7 @@ import { fetchQuotas, type QuotaSegment } from '../../lib/quota'
 import { SessionBadgeEditor } from './badge'
 import { CONFIG } from './config'
 import { createRender } from './render'
-import { createLeftTexts, createRightTexts } from './segments'
+import { createLeftTexts, createRightTexts, createStatusTexts } from './segments'
 
 export default function(pi: ExtensionAPI) {
   let quota: QuotaSegment[] = []
@@ -72,7 +72,8 @@ export default function(pi: ExtensionAPI) {
 
       const leftTexts = createLeftTexts(ctx, footerData)
       const rightTexts = createRightTexts(ctx, () => quota)
-      const render = createRender(theme, leftTexts, rightTexts)
+      const statusTexts = createStatusTexts(footerData)
+      const render = createRender(theme, leftTexts, rightTexts, statusTexts)
 
       return { render, invalidate() {}, dispose }
     })

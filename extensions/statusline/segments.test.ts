@@ -17,7 +17,9 @@ vi.mock('./config', () => ({
 }))
 
 import type { QuotaSegment } from '../../lib/quota'
-import { contextText, createRightTexts, formatTokens, localizeQuotaText } from './segments'
+import { contextText, createRightTexts, createStatusTexts, formatTokens, localizeQuotaText, sanitizeStatusText } from './segments'
+import { CONFIG } from './config'
+import type { ReadonlyFooterDataProvider } from '@earendil-works/pi-coding-agent'
 
 const QUOTA: QuotaSegment[] = [
   { provider: 'zai', text: '5h 12% used', pct: 12 },
@@ -94,5 +96,40 @@ describe('quota 段 provider 过滤', () => {
     const stale = QUOTA.filter((seg) => seg.provider === 'zai')
     const parts = createRightTexts(makeCtx('openai-codex'), () => stale)('quota')
     expect(parts).toEqual([])
+  })
+})
+
+describe('扩展状态独立行', () => {
+  const footerData = (statuses: Record<string, string>): ReadonlyFooterDataProvider =>
+    ({ getExtensionStatuses: () => new Map(Object.entries(statuses)) }) as unknown as ReadonlyFooterDataProvider
+
+  it('清洗剥离终端转义序列与控制字符（回归：bg-task 浅蓝块污染色板）', () => {
+    // pi-background-tasks 源码 lightBlue() 的真实产物形态
+    const raw = '\x1b[48;2;183;223;255m\x1b[38;2;11;70;110m bg 1 running · Shift↓ \x1b[0m'
+    expect(sanitizeStatusText(raw)).toBe('bg 1 running · Shift↓')
+    expect(sanitizeStatusText('a\tb\nc  d')).toBe('a b c d')
+  })
+
+  it('冒号形式 SGR 与光标/清屏 CSI 同样被剥离；纯序列状态清洗为空（不占行）', () => {
+    expect(sanitizeStatusText('\x1b[48:2::183:223:255mBG\x1b[0m')).toBe('BG')
+    expect(sanitizeStatusText('\x1b[1;1HOVERWRITE')).toBe('OVERWRITE')
+    expect(sanitizeStatusText('a\x1b[2Jb')).toBe('ab')
+    expect(sanitizeStatusText('\x1b]8;;https://x\x07link\x1b]8;;\x07')).toBe('link')
+    expect(sanitizeStatusText('\x1b[2J')).toBe('')
+  })
+
+  it('hiddenStatusKeys 过滤键，清洗后无内容的条目丢弃', () => {
+    ;(CONFIG as unknown as { hiddenStatusKeys: string[] }).hiddenStatusKeys = ['mcp']
+    try {
+      const texts = createStatusTexts(footerData({
+        'background-tasks': '\x1b[48;2;183;223;255m bg 1 running \x1b[0m',
+        'mcp': 'mcp ok',
+        'empty': ' \x1b[0m ',
+      }))()
+      expect(texts).toEqual(['bg 1 running'])
+    }
+    finally {
+      ;(CONFIG as unknown as { hiddenStatusKeys: string[] }).hiddenStatusKeys = []
+    }
   })
 })

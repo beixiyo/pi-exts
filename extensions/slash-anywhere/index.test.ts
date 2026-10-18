@@ -3,11 +3,14 @@
  *
  * 捕获的失败面：token 边界判断只认「行内空白」时，换行后行首打 $ 无法触发
  * skill 补全（pi-tui 把行首视为 token 边界并主动发起补全请求，扩展却返回内置
- * provider 的空结果），以及消息开头打 $ 不弹层
+ * provider 的空结果），以及消息开头打 $ 不弹层；补全产物「/命令 」让整行以 /
+ * 开头后，其后继续打 $ 被行首 / 委托分支吞掉；以及该修复引入的边界：
+ * 引号路径（@"a b $x）与子斜杠路径（~/Doc、$docs/）被句中通道劫持、
+ * 配置 / 为触发符后行首命令名补全被劫持
  */
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 import type { AutocompleteProvider } from '@earendil-works/pi-tui'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -111,10 +114,78 @@ describe('slash-anywhere getSuggestions', () => {
     expect(result?.items.map((i) => i.value)).toEqual(['vue-skill'])
   })
 
+  it('补全产物行（/命令 开头）后再打 $ 仍触发句中补全（回归：修复前行首 / 委托吞掉 $token）', async () => {
+    const { provider, builtin } = mountDefault()
+
+    const result = await provider.getSuggestions(['/vue-skill $vue'], 0, 15, { signal: new AbortController().signal })
+
+    expect(builtin.getSuggestions).not.toHaveBeenCalled()
+    expect(result?.prefix).toBe('$vue')
+    expect(result?.items.map((i) => i.value)).toEqual(['vue-skill'])
+  })
+
+  it('补全产物行上的 $token 选中后仅替换 token 本身', () => {
+    const { provider } = mountDefault()
+
+    const next = provider.applyCompletion(['/vue-skill $vue'], 0, 15, { value: 'vue-skill', label: 'vue-skill' }, '$vue')
+
+    expect(next).toEqual({ lines: ['/vue-skill /vue-skill '], cursorLine: 0, cursorCol: 22 })
+  })
+
   it('行首 /token 始终委托内置 provider（含换行后的行）', async () => {
     const { provider, builtin } = mountDefault()
     await provider.getSuggestions(['/vue', ''], 0, 4, { signal: new AbortController().signal })
     await provider.getSuggestions(['上文', '/vue'], 1, 4, { signal: new AbortController().signal })
+
+    expect(builtin.getSuggestions).toHaveBeenCalledTimes(2)
+  })
+
+  it('引号路径内的 $token 委还内置（@"... 跨空格引号路径，回归：句中通道劫持会破坏路径）', async () => {
+    const { provider, builtin } = mountDefault()
+
+    await provider.getSuggestions(['/model @"folder $vue'], 0, 20, { signal: new AbortController().signal })
+    await provider.getSuggestions(['看 "folder $vue'], 0, 14, { signal: new AbortController().signal })
+
+    expect(builtin.getSuggestions).toHaveBeenCalledTimes(2)
+  })
+
+  it('正文孤引号不抑制 $ 补全（内置不认非边界的开引号，不应据此让路）', async () => {
+    const { provider, builtin } = mountDefault()
+
+    const a = await provider.getSuggestions(['abc"def $vue'], 0, 12, { signal: new AbortController().signal })
+    const b = await provider.getSuggestions(['say \\"quoted $vue'], 0, 17, { signal: new AbortController().signal })
+
+    expect(builtin.getSuggestions).not.toHaveBeenCalled()
+    expect(a?.prefix).toBe('$vue')
+    expect(b?.prefix).toBe('$vue')
+  })
+
+  it('闭合引号后的 $token 仍走句中通道（避免引号判定过度触发）', async () => {
+    const { provider, builtin } = mountDefault()
+
+    const result = await provider.getSuggestions(['sed "old" $vue'], 0, 14, { signal: new AbortController().signal })
+
+    expect(builtin.getSuggestions).not.toHaveBeenCalled()
+    expect(result?.prefix).toBe('$vue')
+  })
+
+  it('含子斜杠的触发符路径（~/Doc、$docs/）委还内置文件补全', async () => {
+    writeFileSync(join(agentDir, 'settings.json'), JSON.stringify({ slashAnywhere: { autoTriggerChars: ['$', '~'] } }))
+    const { provider, builtin } = mountDefault()
+
+    await provider.getSuggestions(['/model ~/Doc'], 0, 12, { signal: new AbortController().signal })
+    await provider.getSuggestions(['看 ~/Doc'], 0, 8, { signal: new AbortController().signal })
+    await provider.getSuggestions(['/model $docs/re'], 0, 15, { signal: new AbortController().signal })
+
+    expect(builtin.getSuggestions).toHaveBeenCalledTimes(3)
+  })
+
+  it('配置 / 为触发符被忽略，行首命令名补全仍委内内置（回归：手动通道语义被劫持）', async () => {
+    writeFileSync(join(agentDir, 'settings.json'), JSON.stringify({ slashAnywhere: { autoTriggerChars: ['/', '$'] } }))
+    const { provider, builtin } = mountDefault()
+
+    await provider.getSuggestions(['/mode'], 0, 5, { signal: new AbortController().signal })
+    await provider.getSuggestions(['/model gl'], 0, 9, { signal: new AbortController().signal })
 
     expect(builtin.getSuggestions).toHaveBeenCalledTimes(2)
   })
