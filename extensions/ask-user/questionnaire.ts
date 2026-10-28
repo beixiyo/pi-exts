@@ -62,7 +62,7 @@ export class AskUserQuestionnaire implements Component, Focusable {
     const progress = `Question ${this.currentIndex + 1}/${count} · ${this.answers.size}/${count} confirmed`
     const { theme, kb } = this.config
     const hint = count > 1
-      ? theme.fg('dim', ' · ') + theme.fg('accent', formatKeys(['alt+left', 'alt+right'])) + theme.fg('dim', ' switch · ')
+      ? theme.fg('dim', ' · ') + theme.fg('accent', formatKeys(['alt+left'], ['alt+right'])) + theme.fg('dim', ' switch · ')
         + theme.fg('accent', formatKeys([...kb.getKeys('tui.select.confirm'), ...kb.getKeys('tui.input.submit')]))
         + theme.fg('dim', ' confirm / submit on last question')
       : ''

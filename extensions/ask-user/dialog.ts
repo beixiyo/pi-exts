@@ -60,15 +60,15 @@ export class AskUserSelectComponent implements Component, Focusable {
     this.container.addChild(this.input)
     this.container.addChild(this.message)
     const { kb } = config
-    const hint = (keys: readonly KeyId[], description: string) => theme.fg('accent', formatKeys(keys)) + theme.fg('dim', ` ${description}`)
+    const hint = (bindings: (readonly KeyId[])[], description: string) => theme.fg('accent', formatKeys(...bindings)) + theme.fg('dim', ` ${description}`)
     const hints = [
-      ...(this.optionCount > 0 ? [hint([...kb.getKeys('tui.select.up'), ...kb.getKeys('tui.select.down')], 'select')] : []),
-      ...(this.multiple ? [hint(kb.getKeys('tui.input.tab'), 'toggle')] : []),
-      hint(['left', 'right'], 'cursor'),
-      hint(kb.getKeys('tui.input.newLine'), 'newline'),
-      hint(kb.getKeys('app.clipboard.pasteImage'), 'paste image'),
-      hint([...kb.getKeys('tui.select.confirm'), ...kb.getKeys('tui.input.submit')], 'confirm'),
-      hint(kb.getKeys('tui.select.cancel'), 'cancel'),
+      ...(this.optionCount > 0 ? [hint([kb.getKeys('tui.select.up'), kb.getKeys('tui.select.down')], 'select')] : []),
+      ...(this.multiple ? [hint([kb.getKeys('tui.input.tab')], 'toggle')] : []),
+      hint([['left'], ['right']], 'cursor'),
+      hint([kb.getKeys('tui.input.newLine')], 'newline'),
+      hint([kb.getKeys('app.clipboard.pasteImage')], 'paste image'),
+      hint([[...kb.getKeys('tui.select.confirm'), ...kb.getKeys('tui.input.submit')]], 'confirm'),
+      hint([kb.getKeys('tui.select.cancel')], 'cancel'),
     ]
     this.container.addChild(new Text(hints.join(theme.fg('dim', ' · ')), 1, 0))
     this.container.addChild(new Spacer(1))

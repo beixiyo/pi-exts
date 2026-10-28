@@ -21,9 +21,14 @@ const specialKeys: Readonly<Record<string, string>> = {
   right: '→',
 }
 
-/** 格式化一组备选快捷键；按 ^⌥⇧⌘ 排序修饰键，保留 /、+ 等字面量键 */
-export function formatKeys(keys: readonly KeyId[]): string {
-  return [...new Set(keys.map(displayKey))].join(' / ')
+/** 每组绑定只提示首选键；方向键共用修饰符，备选绑定仍然有效 */
+export function formatKeys(...bindings: (readonly KeyId[])[]): string {
+  const labels = [...new Set(bindings.flatMap((keys) => keys[0] ? [displayKey(keys[0])] : []))]
+  const arrows = labels.map((label) => /^([\^⌥⇧⌘]*)([↑↓←→])$/.exec(label))
+  if (arrows.length > 1 && arrows.every((arrow) => arrow && arrow[1] === arrows[0]![1])) {
+    return arrows[0]![1] + arrows.map((arrow) => arrow![2]).join('')
+  }
+  return labels.join(' ')
 }
 
 /** 只剥离修饰键前缀，避免把 Ctrl+/ 或 Ctrl++ 中的主键当分隔符 */
