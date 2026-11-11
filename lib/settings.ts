@@ -31,10 +31,10 @@ function readJson(path: string): Record<string, unknown> {
  * 读取合并后的 pi settings（project 顶层键覆盖 global）
  * 每次调用都重新读盘：改 settings.json 后 /reload 或下会话即生效
  */
-export function readSettings(): Record<string, unknown> {
+export function readSettings(options: SettingsReadOptions = {}): Record<string, unknown> {
   return {
     ...readJson(join(getAgentDir(), 'settings.json')),
-    ...readJson(join(process.cwd(), '.pi', 'settings.json')),
+    ...(options.projectTrusted === false ? {} : readJson(join(options.cwd ?? process.cwd(), '.pi', 'settings.json'))),
   }
 }
 
@@ -44,9 +44,17 @@ export function readSettings(): Record<string, unknown> {
  * @param key settings.json 下的顶层键名（如 'autoRename'、'statusline'）
  * @returns 配置对象；键缺失或值不是对象时返回 undefined
  */
-export function readExtensionConfig(key: string): Record<string, unknown> | undefined {
-  const value = readSettings()[key]
+export function readExtensionConfig(key: string, options: SettingsReadOptions = {}): Record<string, unknown> | undefined {
+  const value = readSettings(options)[key]
   return value && typeof value === 'object' && !Array.isArray(value)
     ? value as Record<string, unknown>
     : undefined
+}
+
+/** settings 读取范围；可用于隔离尚未信任的项目命令配置 */
+export interface SettingsReadOptions {
+  /** 项目设置的基准目录 @default process.cwd() */
+  cwd?: string
+  /** 是否允许读取项目设置 @default true */
+  projectTrusted?: boolean
 }

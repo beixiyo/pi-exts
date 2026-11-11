@@ -57,7 +57,7 @@ pi -e ./pi-exts               # 或临时试跑工作区，不落盘
 
 ## 只启用部分扩展
 
-本包含 7 个扩展，三种方式精确控制启用哪些：
+本包含 8 个扩展，三种方式精确控制启用哪些：
 
 **1. 交互式** —— 安装后在 `pi config` 里逐个开关
 
@@ -94,6 +94,7 @@ pi -e ./pi-exts               # 或临时试跑工作区，不落盘
 | `status` | `/status` | 会话信息卡片（恢复命令、工作目录、模型、上下文用量）——自动复制到剪贴板，方便其他 Agent 接力 |
 | `statusline` | footer | 彩色状态栏：模型、思考级别、git 分支、扩展状态、上下文用量、厂商配额 |
 | `slash-anywhere` | 补全 | 句中触发 `/命令` 与 skill 补全（`$cmd` 自动、`/cmd` + Tab 手动） |
+| `symbol-reference` | `#` 补全 | 输入项目符号名，插入带文件位置的引用；CLI 可替换 |
 | `md-code-bg` | 渲染 | markdown 行内代码背景色 |
 
 所有配置都从 `~/.pi/agent/settings.json` 读取，**全部可省略**——每个扩展都有合理默认值
@@ -242,6 +243,31 @@ pi 只在「行首打 /」时提供命令补全。本扩展加入句中补全：
 }
 ```
 
+### 项目符号引用
+
+在输入框行首或空白后输入 `#create`，停止输入 80ms 后查询项目符号。裸 `#` 不查询；选中后插入如 `#createDebug lib/debug.ts:12` 的纯引用。候选显示符号类型、位置、详情
+
+默认通过 [vv-mcp.nvim](https://github.com/beixiyo/vv-mcp.nvim) 的 `vv-mcp` CLI 查询，需要它在 PATH 中可用。也可换成自己的工具：
+
+```json
+{
+  "symbolReference": {
+    "enabled": true,
+    "debounceMs": 80,
+    "timeoutMs": 30000,
+    "maxResults": 50,
+    "command": ["vv-mcp", "lsp", "--operation", "workspace_symbols", "--uri", "{cwd}", "--query", "{query}", "--output-format", "json", "--max-results", "{limit}"],
+    "insertTemplate": "#{name} {path}:{line}"
+  }
+}
+```
+
+- `command` 第一项是可执行文件，其余为独立参数；不经 shell。支持 `{cwd}`（会话目录）、`{query}`（不含 `#`）、`{limit}`。命令和参数支持 `~`、`~/`、`$VAR`、`${VAR}` 展开；未定义变量保留原样，`$$` 表示字面 `$`，查询文本不展开
+- `insertTemplate` 支持 `{name}`、`{path}`、`{line}`、`{character}`、`{kind}`、`{container}`、`{detail}`；绝对文件路径转成相对会话目录的路径
+- 自定义工具在 stdout 输出 JSON 数组即可：`[{"name":"createDebug","path":"lib/debug.ts","line":12,"character":17,"kind":"Function"}]`。`name`、`path`、`line` 必填，行列 **1-based**；`character` 默认 1，其余描述字段可省略。也兼容 vv-mcp 的 `{ "symbols": { "文件路径": [{ "name": "…", "range": "12:17-12:28", "kind": "Function" }] } }`；无位置条目跳过，不伪造行号
+- 空结果输出 `[]` 或 `{"symbols":{}}`；错误以非零退出码或 stderr 报告。失败不显示候选，每会话最多提醒一次；不缓存失败结果，后续输入仍可重试
+- 配置位于 `~/.pi/agent/settings.json` 或可信项目的 `.pi/settings.json`
+
 ### 行内代码背景
 
 markdown 行内 `` `代码` `` 以背景色渲染。fenced 代码块不受影响。效果见顶部安装前后对比图
@@ -284,7 +310,8 @@ markdown 行内 `` `代码` `` 以背景色渲染。fenced 代码块不受影响
 
 - **读取**：`settings.json`、`auth.json`（只读——配额 adapter 只查自己的 API key）、经 pi API 读取会话数据
 - **网络**：只访问厂商配额/计费端点（z.ai / bigmodel.cn、chatgpt.com/backend-api、openrouter.ai、api.deepseek.com、api.openai.com），且只对 `auth.json` 中存在凭证的厂商发起；外加每会话一次自动命名的 LLM 调用（用你配置的模型）
-- **写入**：除 pi 自身的会话命名 API 外不写任何文件。剪贴板写入仅发生在显式动作（`/yank`、`/status`）——tmux 内经 OSC 52 转发到真实终端
+- **符号 CLI**：补全会执行配置的本地程序；请仅使用可信命令。默认 vv-mcp 可能启动受管 Neovim 实例
+- **写入**：扩展自身除 pi 的会话命名 API 外不写任何文件。剪贴板写入仅发生在显式动作（`/yank`、`/status`）——tmux 内经 OSC 52 转发到真实终端
 - 部分配额端点需要特定类型的 key（如 OpenRouter/OpenAI 管理 key）；没有就静默跳过该段
 
 ## 我日常在用的其他包

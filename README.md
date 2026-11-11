@@ -57,7 +57,7 @@ pi -e ./pi-exts               # or try the working tree without saving
 
 ## Install only what you want
 
-This package ships 7 extensions. Pick exactly the ones you want — three ways:
+This package ships 8 extensions. Pick exactly the ones you want — three ways:
 
 **1. Interactive** — after installing, toggle each extension on/off in `pi config`.
 
@@ -94,6 +94,7 @@ This package ships 7 extensions. Pick exactly the ones you want — three ways:
 | `status` | `/status` | Session info card (resume command, cwd, model, context usage) — auto-copied to the clipboard for handoff to another agent |
 | `statusline` | footer | Colorful statusline: model, thinking level, git branch, extension statuses, context usage, provider quotas |
 | `slash-anywhere` | completion | Trigger `/command` and skill completion mid-sentence (`$cmd` auto, `/cmd` + Tab manual) |
+| `symbol-reference` | `#` completion | Reference project symbols with file locations through a replaceable CLI |
 | `md-code-bg` | rendering | Colored background for markdown inline code |
 | `pretty-cat` | theme | Tokyo Night–derived theme the bundled colors are tuned against |
 
@@ -186,7 +187,7 @@ Appends a persistent card to the transcript (not sent to the LLM) with session n
 
 A declarative footer: left/right segment lists, per-segment colors (theme color, truecolor hex, or `auto` for usage-based coloring), provider quotas refreshed in the background, and a session-name badge embedded in the input border (delegates to the existing editor — works with [pi-vim](https://www.npmjs.com/package/pi-vim)).
 
-Main-row segments — left: `model`, `thinking`, `branch`, `sessionName`; right: `context`, `quota` (expands to that provider's quota segments). Quota providers: GLM Coding Plan (zai), OpenAI Codex subscription (ChatGPT sign-in, via the same `/wham/usage` endpoint as codex CLI's `/status`), OpenRouter, DeepSeek, OpenAI (admin key). Only the current model's provider quota is fetched and shown; switching models refetches immediately. 
+Main-row segments — left: `model`, `thinking`, `branch`, `sessionName`; right: `context`, `quota` (expands to that provider's quota segments). Quota providers: GLM Coding Plan (zai), OpenAI Codex subscription (ChatGPT sign-in, via the same `/wham/usage` endpoint as codex CLI's `/status`), OpenRouter, DeepSeek, OpenAI (admin key). Only the current model's provider quota is fetched and shown; switching models refetches immediately.
 
 To debug a missing quota: start pi with `QUOTA_DEBUG=1` and check `/tmp/quota-debug.log` (per-provider ok/failed/no-credential lines with server code+msg)
 
@@ -243,6 +244,31 @@ pi only offers command completion when `/` starts the line. This adds mid-senten
 }
 ```
 
+### Project symbol references
+
+Type `#create` at the start of a line or after whitespace to query project symbols after an 80ms pause. A bare `#` does not query. Selecting a candidate inserts a reference such as `#createDebug lib/debug.ts:12`. Candidates show kind, location and detail.
+
+Uses the `vv-mcp` CLI from [vv-mcp.nvim](https://github.com/beixiyo/vv-mcp.nvim), available on PATH. You can replace it with your own tool:
+
+```json
+{
+  "symbolReference": {
+    "enabled": true,
+    "debounceMs": 80,
+    "timeoutMs": 30000,
+    "maxResults": 50,
+    "command": ["vv-mcp", "lsp", "--operation", "workspace_symbols", "--uri", "{cwd}", "--query", "{query}", "--output-format", "json", "--max-results", "{limit}"],
+    "insertTemplate": "#{name} {path}:{line}"
+  }
+}
+```
+
+- `command` contains the executable followed by separate arguments; no shell evaluation. Supports `{cwd}` (session directory), `{query}` (without `#`) and `{limit}`. Commands and arguments support leading `~` / `~/` and `$VAR` / `${VAR}` expansion. Unset variables stay unchanged; `$$` escapes `$`. Query text is not expanded
+- `insertTemplate` supports `{name}`, `{path}`, `{line}`, `{character}`, `{kind}`, `{container}` and `{detail}`. Absolute file paths become relative to the session directory
+- Custom tools print a JSON array on stdout: `[{"name":"createDebug","path":"lib/debug.ts","line":12,"character":17,"kind":"Function"}]`. `name`, `path` and `line` are required; positions are **1-based**, `character` defaults to 1, and description fields are optional. Also accepts vv-mcp's `{ "symbols": { "file path": [{ "name": "…", "range": "12:17-12:28", "kind": "Function" }] } }`. Entries without a usable location are skipped rather than assigned an invented line
+- Empty results: `[]` or `{"symbols":{}}`. Report failures using a nonzero exit code with stderr details. Failures show no candidates and at most one warning per session; subsequent input can retry
+- Configure in `~/.pi/agent/settings.json` or a trusted project's `.pi/settings.json`
+
 ### Inline code background
 
 Renders markdown inline `` `code` `` with a colored background block. Fenced code blocks are untouched. See the Before/After comparison at the top for the effect.
@@ -285,7 +311,8 @@ Settings are read from `~/.pi/agent/settings.json` (global) merged with `<projec
 
 - **Reads**: `settings.json`, `auth.json` (read-only — quota providers look up their own API keys), session data via pi APIs.
 - **Network**: only provider quota/billing endpoints (z.ai / bigmodel.cn, chatgpt.com/backend-api, openrouter.ai, api.deepseek.com, api.openai.com), and only for providers whose keys exist in `auth.json`. Plus one LLM call per session for auto-rename, using your configured model.
-- **Writes**: nothing outside pi's own session-name API. Clipboard writes happen only on explicit actions (`/yank`, `/status`) — with OSC 52 forwarding when inside tmux.
+- **Symbol CLI**: completion executes a configured local program; only use trusted commands. The default vv-mcp may start a managed Neovim instance
+- **Writes**: extensions themselves write nothing outside pi's own session-name API. Clipboard writes happen only on explicit actions (`/yank`, `/status`) — with OSC 52 forwarding when inside tmux.
 - Quota endpoints need specific key types (e.g. OpenRouter/OpenAI management keys); if absent, the segment is simply skipped.
 
 ## Other packages I use daily
